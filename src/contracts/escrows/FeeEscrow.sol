@@ -76,8 +76,14 @@ contract FeeEscrow is Ownable {
         // that has also been passed in. This will prevent users from being misallocated and
         // external contracts that depend on this figure from being misinformed.
         (address flaunch,,, uint tokenId) = indexer.poolIndex(_poolId);
-        if (tokenId != 0 && IERC721(flaunch).ownerOf(tokenId) == _recipient) {
-            totalFeesAllocated[_poolId] += _amount;
+        if (tokenId != 0) {
+            // Handle case where the token has been burned. This is wrapped in a try/catch as we don't
+            // want to revert if the token has been burned.
+            try IERC721(flaunch).ownerOf(tokenId) returns (address owner) {
+                if (owner == _recipient) {
+                    totalFeesAllocated[_poolId] += _amount;
+                }
+            } catch {}
         }
 
         // Transfer flETH from the sender into this escrow

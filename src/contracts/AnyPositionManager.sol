@@ -385,7 +385,7 @@ contract AnyPositionManager is BaseHook, FeeDistributor, InternalSwapPool, Store
         IPoolManager.SwapParams calldata _params,
         BalanceDelta _delta,
         bytes calldata _hookData
-    ) public override onlyPoolManager returns (
+    ) public virtual override onlyPoolManager returns (
         bytes4 selector_,
         int128 hookDeltaUnspecified_
     ) {
@@ -580,7 +580,7 @@ contract AnyPositionManager is BaseHook, FeeDistributor, InternalSwapPool, Store
      *
      * @return bytes Empty data; nothing will be returned
      */
-    function _unlockCallback(bytes calldata _data) internal override returns (bytes memory) {
+    function _unlockCallback(bytes calldata _data) internal virtual override returns (bytes memory) {
         bidWall.closeBidWall(abi.decode(_data, (PoolKey)));
     }
 

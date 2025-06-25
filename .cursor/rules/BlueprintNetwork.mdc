@@ -1,0 +1,450 @@
+# Blueprint Network Documentation
+
+## Overview
+
+The Blueprint Network is an upgradeable, role-based system that extends the Flaunch protocol to use Blueprint (BP) tokens as the network currency instead of ETH. It implements a sophisticated fee distribution model and includes XP-based rewards, automatic buybacks, and comprehensive access controls.
+
+## Architecture
+
+```mermaid
+graph TB
+    subgraph "User Interface Layer"
+        U[User]
+        UI[Frontend UI]
+    end
+
+    subgraph "Entry Point & Orchestration"
+        BF[BlueprintFactory]
+        BPM[BlueprintPositionManager]
+    end
+
+    subgraph "Core Protocol Layer"
+        BNH[BlueprintNetworkHook]
+        PM[PoolManager - Uniswap V4]
+        BT[Blueprint Token - ERC20]
+    end
+
+    subgraph "Fee Distribution & Economics"
+        BE[BuybackEscrow]
+        RP[RewardPool]
+        CT[Creator Treasury]
+        BPT[BP Treasury]
+    end
+
+    subgraph "External Dependencies"
+        FL[Flaunch Contract]
+        AFL[AnyFlaunch Contract]
+        MT[MemecoinTreasury]
+    end
+
+    %% User Interactions
+    U -->|Launch Token| BF
+    U -->|Buy Creator Tokens| BPM
+    U -->|Claim XP Rewards| RP
+
+    %% Factory Orchestration
+    BF -->|Deploy & Initialize| BNH
+    BF -->|Deploy & Configure| BE
+    BF -->|Deploy & Setup| RP
+    BF -->|Create Token| BT
+    BF -->|Integrate with| FL
+    BF -->|Integrate with| AFL
+
+    %% Position Manager Integration
+    BPM -->|Route ETH→BP→Creator| BNH
+    BPM -->|Track XP Events| RP
+    BPM -->|Override afterSwap| BNH
+
+    %% Hook Core Functions
+    BNH -->|Create Pools| PM
+    BNH -->|Distribute Fees 60%| BE
+    BNH -->|Distribute Fees 20%| CT
+    BNH -->|Distribute Fees 10%| BPT
+    BNH -->|Distribute Fees 10%| RP
+    BNH -->|Mint BP Tokens| BT
+
+    %% Buyback Mechanism
+    BE -->|Execute Buybacks| PM
+    BE -->|Burn Tokens| BT
+    BE -->|Auto-trigger| BNH
+
+    %% Reward System
+    RP -->|Track Buy Events| BNH
+    RP -->|Track Sell Events| BNH
+    RP -->|Distribute BP Rewards| BT
+
+    %% Treasury Integration
+    BF -->|Create Treasury| MT
+    CT -->|Manage Creator Funds| MT
+
+    style BF fill:#f9f,stroke:#333,stroke-width:4px
+    style BNH fill:#bbf,stroke:#333,stroke-width:3px
+    style BE fill:#bfb,stroke:#333,stroke-width:2px
+    style RP fill:#fbf,stroke:#333,stroke-width:2px
+```
+
+## Core Contracts
+
+### 1. BlueprintFactory.sol
+**Main factory contract for deploying and managing the Blueprint Network**
+
+**Features:**
+- Upgradeable using UUPS pattern
+- Role-based access control (7 distinct roles)
+- Deploys child contracts as upgradeable proxies
+- Manages creator token launches
+- Emergency pause functionality
+
+**Key Functions:**
+- `initializeBlueprintNetwork()` - Deploy the complete system
+- `launchCreatorToken()` - Create new Blueprint-based creator tokens
+- `importCreatorToken()` - Import existing tokens into Blueprint Network
+- `routeEthToCreator()` - Route ETH → BP → Creator tokens
+
+**Roles:**
+- `ADMIN_ROLE` - Overall system administration
+- `DEPLOYER_ROLE` - Network deployment permissions
+- `CREATOR_ROLE` - Token creation permissions
+- `EMERGENCY_ROLE` - Emergency pause/unpause
+- `UPGRADER_ROLE` - Contract upgrade authorization
+
+### 2. BlueprintNetworkHook.sol
+**Uniswap V4 hook managing Blueprint Protocol flow**
+
+**Features:**
+- Upgradeable Uniswap V4 hook
+- Configurable fee distribution (default 60/20/10/10)
+- ETH → BP → Creator token routing
+- Automatic fee distribution after swaps
+- XP event tracking integration
+- Optimized function state mutability for gas efficiency
+
+**Key Functions:**
+- `initializeBlueprintNetwork()` - Create BP token and ETH/BP pool
+- `createCreatorPool()` - Create BP/Creator pools
+- `routeEthToCreator()` - Execute the routing flow
+- `updateFeeConfiguration()` - Modify fee percentages
+- `afterSwap()` - Hook function for fee distribution
+
+**Fee Distribution Model:**
+- 60% → BuybackEscrow (token buybacks and burns)
+- 20% → Creator Treasury (creator rewards)
+- 10% → BP Treasury (network operations)
+- 10% → RewardPool (XP-based user rewards)
+
+### 3. BuybackEscrow.sol
+**Handles automatic token buybacks and burns**
+
+**Features:**
+- Upgradeable with role-based access control
+- Configurable buyback thresholds and intervals
+- Automatic and manual buyback execution
+- Token burning mechanism
+- Emergency withdrawal capabilities
+
+**Key Functions:**
+- `receiveFees()` - Receive fees from hook
+- `executeBuyback()` - Manual buyback execution
+- `executeBuybackBatch()` - Batch buyback operations
+- `burnTokens()` - Burn bought-back tokens
+- `setBuybackThreshold()` - Configure buyback parameters
+
+**Roles:**
+- `ADMIN_ROLE` - General administration
+- `BUYBACK_MANAGER_ROLE` - Buyback parameter management
+- `EMERGENCY_ROLE` - Emergency functions
+- `UPGRADER_ROLE` - Contract upgrades
+
+### 4. RewardPool.sol
+**XP-based reward system for user engagement**
+
+**Features:**
+- Upgradeable XP tracking system
+- Reward period management
+- Proportional reward distribution
+- User allowlist and penalty system
+- Multi-period claiming
+
+**Key Functions:**
+- `trackBuyEvent()` / `trackSellEvent()` - Track user actions
+- `awardXP()` / `penalizeXP()` - Manual XP management
+- `startRewardPeriod()` - Create reward periods
+- `claimRewards()` - Claim proportional rewards
+- `addToAllowlist()` - Manage eligible users
+
+**XP System:**
+- Buy events: +10 XP (configurable)
+- Sell events: +5 XP (configurable)
+- Proportional rewards based on XP percentage
+- Penalty system for violations
+
+**Roles:**
+- `ADMIN_ROLE` - System administration
+- `XP_MANAGER_ROLE` - XP and allowlist management
+- `HOOK_ROLE` - Event tracking (granted to hook)
+- `EMERGENCY_ROLE` - Emergency functions
+- `UPGRADER_ROLE` - Contract upgrades
+
+### 5. BlueprintPositionManager.sol
+**Extended position manager with Blueprint Protocol support**
+
+**Features:**
+- Extends AnyPositionManager
+- Blueprint-specific pool creation
+- ETH → BP → Creator routing
+- XP event integration
+- Backwards compatibility with Flaunch
+
+**Key Functions:**
+- `initializeBlueprint()` - Initialize Blueprint functionality
+- `blueprintFlaunch()` - Launch Blueprint-based tokens
+- `routeEthToCreator()` - Execute routing flow
+- `afterSwap()` - Override for Blueprint fee handling
+
+## Token Flow
+
+### 1. Creator Token Launch
+```
+Creator → BlueprintFactory.launchCreatorToken()
+├── Create ERC20 token (10B supply)
+├── Create treasury (75% of tokens)
+├── Create BP/Creator pool via Hook
+├── Add initial liquidity (25% of tokens)
+└── Register pool in BuybackEscrow
+```
+
+### 2. User Purchase Flow
+```
+User ETH → BlueprintFactory.routeEthToCreator()
+├── ETH → BP (via ETH/BP pool)
+├── BP → Creator Token (via BP/Creator pool)
+├── Transfer creator tokens to user
+├── Distribute fees (60/20/10/10)
+└── Track XP event (+10 XP)
+```
+
+### 3. Fee Distribution Flow
+```
+Swap Fees (100%) →
+├── 60% → BuybackEscrow
+│   ├── Accumulate until threshold
+│   ├── Auto-execute buyback
+│   └── Burn bought tokens
+├── 20% → Creator Treasury
+├── 10% → BP Treasury
+└── 10% → RewardPool
+    ├── Convert to BP tokens
+    └── Add to reward pool
+```
+
+## Configuration
+
+### Fee Configuration
+```solidity
+struct FeeConfiguration {
+    uint24 buybackFee;      // 6000 = 60%
+    uint24 creatorFee;      // 2000 = 20%
+    uint24 bpTreasuryFee;   // 1000 = 10%
+    uint24 rewardPoolFee;   // 1000 = 10%
+    bool active;            // Enable/disable
+}
+```
+
+### XP Configuration
+```solidity
+struct XPConfig {
+    uint256 buyEventXP;      // 10 XP per buy
+    uint256 sellEventXP;     // 5 XP per sell
+    uint256 minClaimAmount;  // 1 BP minimum claim
+    bool buyTrackingEnabled; // Enable buy tracking
+    bool sellTrackingEnabled; // Enable sell tracking
+}
+```
+
+### Buyback Configuration
+- **Threshold**: Minimum accumulated fees before buyback
+- **Interval**: Time between automatic buybacks
+- **Auto-enabled**: Toggle automatic execution
+
+## Deployment Guide
+
+### 1. Deploy Implementation Contracts
+```solidity
+BlueprintNetworkHook hookImpl = new BlueprintNetworkHook(poolManager);
+BuybackEscrow escrowImpl = new BuybackEscrow();
+RewardPool rewardImpl = new RewardPool();
+```
+
+### 2. Deploy and Initialize Factory
+```solidity
+BlueprintFactory factory = new BlueprintFactory();
+factory.initialize(
+    poolManager,
+    WETH,
+    flaunchContract,
+    anyFlaunchContract,
+    memecoinImpl,
+    treasuryImpl,
+    bpTreasury,
+    admin,
+    hookImpl,
+    escrowImpl
+);
+```
+
+### 3. Initialize Blueprint Network
+```solidity
+factory.initializeBlueprintNetwork(
+    flayGovernance,
+    feeEscrow,
+    buybackThreshold,
+    buybackInterval
+);
+```
+
+### 4. Launch Creator Tokens
+```solidity
+factory.launchCreatorToken(
+    creator,
+    "Token Name",
+    "SYMBOL",
+    "ipfs://metadata",
+    0, // default supply
+    2000 // 20% creator fee
+);
+```
+
+## Security Features
+
+### Role-Based Access Control
+- **Granular permissions** for different operations
+- **Multi-role system** prevents single points of failure
+- **Emergency roles** for critical situations
+
+### Upgradeability
+- **UUPS pattern** for secure upgrades
+- **Upgrade authorization** via UPGRADER_ROLE
+- **Initialization protection** prevents double-initialization
+
+### Emergency Functions
+- **Pause/unpause** all operations
+- **Emergency withdrawal** from all contracts
+- **Role revocation** for compromised accounts
+
+### Validation
+- **Fee percentage limits** (max 100% total)
+- **Address validation** prevents zero addresses
+- **Threshold validation** ensures valid parameters
+
+## Testing
+
+### Comprehensive Test Coverage ✅
+- **BlueprintFactoryTest** - Factory functionality
+- **BlueprintNetworkHookTest** - Hook operations
+- **BuybackEscrowTest** - Buyback mechanisms
+- **RewardPoolTest** - XP and reward systems
+- **BlueprintPositionManagerTest** - Position management
+- **Linter compliance** - All function state mutability optimized
+
+### Test Commands
+```bash
+# Compile contracts
+make test_blueprint_compilation
+
+# Run all Blueprint tests
+make test_blueprint_all
+
+# Run individual component tests
+make test_blueprint_factory
+make test_blueprint_hook
+make test_buyback_escrow
+make test_reward_pool
+make test_blueprint_position_manager
+```
+
+## Integration Examples
+
+### Launch a Creator Token
+```solidity
+// Grant creator role
+factory.grantRole(CREATOR_ROLE, creator);
+
+// Launch token
+(address token, address treasury, uint256 tokenId) = factory.launchCreatorToken(
+    creator,
+    "My Creator Token",
+    "MCT",
+    "ipfs://metadata-hash",
+    0, // use default 10B supply
+    1500 // 15% creator fee allocation
+);
+```
+
+### Route ETH to Creator Token
+```solidity
+// User purchases creator tokens
+uint256 creatorAmount = factory.routeEthToCreator{value: 1 ether}(
+    creatorTokenAddress,
+    minCreatorTokensOut
+);
+```
+
+### Manage XP Rewards
+```solidity
+// Add user to allowlist
+rewardPool.addToAllowlist(userAddress);
+
+// Start reward period
+rewardPool.startRewardPeriod(
+    30 days, // duration
+    1000 ether // total BP rewards
+);
+
+// User claims rewards
+rewardPool.claimRewards(periodNumber);
+```
+
+## Monitoring and Analytics
+
+### Key Metrics
+- **Total Value Locked** in Blueprint pools
+- **Fee distribution** across categories
+- **Buyback efficiency** and burn amounts
+- **XP engagement** and reward claims
+- **Creator token performance**
+
+### Events for Monitoring
+- `CreatorTokenLaunched` - New token launches
+- `TokensRouted` - User purchases
+- `FeesDistributed` - Fee allocation
+- `BuybackExecuted` - Buyback operations
+- `RewardsClaimed` - User reward claims
+
+## Roadmap
+
+### Phase 1: Core Implementation ✅
+- Basic Blueprint Network functionality
+- Fee distribution system
+- XP tracking and rewards
+
+### Phase 2: Advanced Features ✅
+- Upgradeable architecture
+- Role-based access control
+- Emergency pause functionality
+
+### Phase 3: Optimization ✅
+- Gas optimization (function state mutability)
+- Advanced buyback strategies
+- Enhanced reward mechanisms
+
+### Phase 4: Ecosystem Integration
+- Cross-chain support
+- Additional token standards
+- Partner integrations
+
+## Support
+
+For technical support and integration assistance:
+- Review test files for implementation examples
+- Check contract documentation for detailed function descriptions
+- Refer to error codes for troubleshooting

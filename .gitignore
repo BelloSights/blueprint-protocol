@@ -67,6 +67,7 @@ docs/
 
 # Dotenv file
 .env
+.env.test
 
 # OS Files
 .DS_Store

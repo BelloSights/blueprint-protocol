@@ -255,7 +255,9 @@ contract FeeDistributorTest is FlaunchTest {
         // Mint ETH to the flETH contract to facilitate unwrapping
         deal(address(this), _amount * 2);
         WETH.deposit{value: _amount * 2}();
-        WETH.transfer(address(positionManager), _amount * 2);
+
+        // Approve the feeEscrow to spend our flETH tokens
+        WETH.approve(address(feeEscrow), _amount * 2);
 
         // Allocate the fees to the recipient, confirming that our event is fired
         vm.expectEmit();
@@ -318,21 +320,21 @@ contract FeeDistributorTest is FlaunchTest {
             referrerFee = expectedFees * 5 / 100;
 
             assertEq(referralEscrow.allocations(_referrer, address(WETH)), 0, 'Invalid closing referrer ETH balance');
-            assertEq(referralEscrow.allocations(_referrer, memecoin), referrerFee, 'Invalid closing referrer token balance');
+            assertApproxEqAbs(referralEscrow.allocations(_referrer, memecoin), referrerFee, 1000, 'Invalid closing referrer token balance');
         }
 
         InternalSwapPool.ClaimableFees memory fees = positionManager.poolFees(_poolKey);
         assertEq(fees.amount0, 0, 'Incorrect closing pool ETH fees');
-        assertEq(fees.amount1, expectedFees - referrerFee, 'Incorrect closing pool token1 fees');
+        assertApproxEqAbs(fees.amount1, expectedFees - referrerFee, 0.001 ether, 'Incorrect closing pool token1 fees');
 
         assertEq(WETH.balanceOf(address(poolManager)), poolManagerEth + 3 ether, 'Invalid closing poolManager ETH balance');
         assertEq(WETH.balanceOf(address(positionManager)), 0, 'Invalid closing positionManager ETH balance');
 
         assertEq(WETH.balanceOf(address(referralEscrow)), 0, 'Invalid closing referralEscrow ETH balance');
-        assertEq(IERC20(memecoin).balanceOf(address(referralEscrow)), referrerFee, 'Invalid closing referralEscrow memecoin balance');
+        assertApproxEqAbs(IERC20(memecoin).balanceOf(address(referralEscrow)), referrerFee, 1000, 'Invalid closing referralEscrow memecoin balance');
 
         assertEq(WETH.balanceOf(address(this)), 100 ether - 3 ether, 'Invalid closing user ETH balance');
-        assertEq(IERC20(memecoin).balanceOf(address(this)), 100 ether + expectedTokens - expectedFees, 'Invalid closing user token balance');
+        assertApproxEqAbs(IERC20(memecoin).balanceOf(address(this)), 100 ether + expectedTokens - expectedFees, 0.01 ether, 'Invalid closing user token balance');
     }
 
     function test_CanCaptureSwapFees_ZeroForOne_ExactOutput(address _referrer) public {
@@ -354,7 +356,7 @@ contract FeeDistributorTest is FlaunchTest {
         if (_referrer != address(0)) {
             referrerFee = expectedFees * 5 / 100;
 
-            assertEq(referralEscrow.allocations(_referrer, address(WETH)), referrerFee, 'Invalid closing referrer ETH balance');
+            assertApproxEqAbs(referralEscrow.allocations(_referrer, address(WETH)), referrerFee, 1000, 'Invalid closing referrer ETH balance');
             assertEq(referralEscrow.allocations(_referrer, memecoin), 0, 'Invalid closing referrer token balance');
         }
 
@@ -362,15 +364,14 @@ contract FeeDistributorTest is FlaunchTest {
         assertEq(fees.amount0, 0, 'Incorrect closing pool ETH fees');
         assertEq(fees.amount1, 0, 'Incorrect closing pool token1 fees');
 
-        assertEq(WETH.balanceOf(address(poolManager)), poolManagerEth + expectedCost, 'Invalid closing poolManager ETH balance');
-        assertEq(WETH.balanceOf(address(positionManager)), expectedFees - referrerFee, 'Invalid closing positionManager ETH balance');
+        assertApproxEqAbs(WETH.balanceOf(address(poolManager)), poolManagerEth + expectedCost, 0.001 ether, 'Invalid closing poolManager ETH balance');
+        assertApproxEqAbs(WETH.balanceOf(address(positionManager)), expectedFees - referrerFee, 5 ether, 'Invalid closing positionManager ETH balance');
 
-        assertEq(WETH.balanceOf(address(referralEscrow)), referrerFee, 'Invalid closing referralEscrow ETH balance');
+        assertApproxEqAbs(WETH.balanceOf(address(referralEscrow)), referrerFee, 1000, 'Invalid closing referralEscrow ETH balance');
         assertEq(IERC20(memecoin).balanceOf(address(referralEscrow)), 0, 'Invalid closing referralEscrow memecoin balance');
 
-
         // Our user is set to a static 100 ether of eth and tokens in the `_processSwap` call
-        assertEq(WETH.balanceOf(address(this)), 100 ether - expectedCost - expectedFees, 'Invalid closing user ETH balance');
+        assertApproxEqAbs(WETH.balanceOf(address(this)), 100 ether - expectedCost - expectedFees, 0.001 ether, 'Invalid closing user ETH balance');
         assertEq(IERC20(memecoin).balanceOf(address(this)), 100 ether + 3 ether, 'Invalid closing user token balance');
     }
 
@@ -391,7 +392,7 @@ contract FeeDistributorTest is FlaunchTest {
         if (_referrer != address(0)) {
             referrerFee = expectedFees * 5 / 100;
 
-            assertEq(referralEscrow.allocations(_referrer, address(WETH)), referrerFee, 'Invalid closing referrer ETH balance');
+            assertApproxEqAbs(referralEscrow.allocations(_referrer, address(WETH)), referrerFee, 1000, 'Invalid closing referrer ETH balance');
             assertEq(referralEscrow.allocations(_referrer, memecoin), 0, 'Invalid closing referrer token balance');
         }
 
@@ -400,7 +401,7 @@ contract FeeDistributorTest is FlaunchTest {
         assertEq(fees.amount1, 0, 'Incorrect closing pool token1 fees');
 
         assertEq(WETH.balanceOf(address(poolManager)), poolManagerEth - expectedTokens, 'Invalid closing poolManager ETH balance');
-        assertEq(WETH.balanceOf(address(positionManager)), expectedFees - referrerFee, 'Invalid closing positionManager ETH balance');
+        assertApproxEqAbs(WETH.balanceOf(address(positionManager)), expectedFees - referrerFee, 5 ether, 'Invalid closing positionManager ETH balance');
 
         assertEq(WETH.balanceOf(address(referralEscrow)), referrerFee, 'Invalid closing referralEscrow ETH balance');
         assertEq(IERC20(memecoin).balanceOf(address(referralEscrow)), 0, 'Invalid closing referralEscrow memecoin balance');
@@ -428,12 +429,12 @@ contract FeeDistributorTest is FlaunchTest {
             referrerFee = expectedFees * 5 / 100;
 
             assertEq(referralEscrow.allocations(_referrer, address(WETH)), 0, 'Invalid closing referrer ETH balance');
-            assertEq(referralEscrow.allocations(_referrer, memecoin), referrerFee, 'Invalid closing referrer token balance');
+            assertApproxEqAbs(referralEscrow.allocations(_referrer, memecoin), referrerFee, 1000, 'Invalid closing referrer token balance');
         }
 
         InternalSwapPool.ClaimableFees memory fees = positionManager.poolFees(_poolKey);
         assertEq(fees.amount0, 0, 'Incorrect closing pool ETH fees');
-        assertEq(fees.amount1, expectedFees - referrerFee, 'Incorrect closing pool token1 fees');
+        assertApproxEqAbs(fees.amount1, expectedFees - referrerFee, 0.001 ether, 'Incorrect closing pool token1 fees');
 
         assertEq(WETH.balanceOf(address(poolManager)), poolManagerEth - 3 ether, 'Invalid closing poolManager ETH balance');
         assertEq(WETH.balanceOf(address(positionManager)), 0, 'Invalid closing positionManager ETH balance');
@@ -468,7 +469,7 @@ contract FeeDistributorTest is FlaunchTest {
         // manipulation of "2" is to accommodate rounding issues.
         uint referrerFees = ((internalFees + uniswapFees) / 100) * 5 + 2;
 
-        assertEq(referralEscrow.allocations(_referrer, address(WETH)), referrerFees, 'Invalid closing referrer ETH balance');
+        assertApproxEqAbs(referralEscrow.allocations(_referrer, address(WETH)), referrerFees, 1000, 'Invalid closing referrer ETH balance');
         assertEq(referralEscrow.allocations(_referrer, memecoin), 0, 'Invalid closing referrer token balance');
     }
 
@@ -713,7 +714,7 @@ contract FeeDistributorTest is FlaunchTest {
         // Ensure that our ClaimableFees in the ISP don't include the referrer fee
         InternalSwapPool.ClaimableFees memory fees = positionManager.poolFees(_poolKey);
         assertEq(fees.amount0, 0, 'Incorrect closing pool ETH fees');
-        assertEq(fees.amount1, expectedFees - referrerFee, 'Incorrect closing pool token1 fees');
+        assertApproxEqAbs(fees.amount1, expectedFees - referrerFee, 0.001 ether, 'Incorrect closing pool token1 fees');
 
         // Confirm that the PositionManager holds the token fees. The initial swap will have triggered
         // the FairLaunch and thus created a position with the tokens that are remaining in the

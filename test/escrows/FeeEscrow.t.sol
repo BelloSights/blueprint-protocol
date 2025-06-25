@@ -99,6 +99,11 @@ contract FeeEscrowTest is FlaunchTest {
         vm.assume(_recipient != address(0));
         vm.assume(_sender != _recipient);
         
+        // If unwrapping to ETH, ensure recipient can receive ETH (not a contract)
+        if (_unwrap) {
+            vm.assume(_recipient.code.length == 0);
+        }
+        
         // Limit amount to a reasonable value
         vm.assume(_amount > 0 && _amount < 1000 ether);
         

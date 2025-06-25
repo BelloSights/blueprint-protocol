@@ -107,7 +107,7 @@ contract ReferralEscrowTest is FlaunchTest {
     }
 
     function test_CannotAssignTokensAsNonPositionManager() public {
-        vm.expectRevert(UNAUTHORIZED);
+        vm.expectRevert("NotPositionManager()");
         referralEscrow.assignTokens(POOL_ID, user1, address(token1), 1 ether);
     }
 

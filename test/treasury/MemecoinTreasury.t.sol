@@ -99,17 +99,16 @@ contract MemecoinTreasuryTest is FlaunchTest {
     function test_CanClaimFees_FlethAdded(uint _flethAdded) public {
         // Set the {PositionManager} fees for {MemecoinTreasury} to a positive amount
         vm.assume(_flethAdded > 0);
+        vm.assume(_flethAdded <= 1000 ether); // Reasonable upper bound to prevent overflow
+        
+        // Provide sufficient WETH to the {PositionManager} FIRST
+        deal(address(WETH), address(positionManager), _flethAdded);
+        
         positionManager.allocateFeesMock({
             _poolId: PoolId.wrap(bytes32('1')),
             _recipient: payable(address(memecoinTreasury)),
             _amount: _flethAdded
         });
-
-        // Provide sufficient native token to the {PositionManager}
-        vm.startPrank(address(positionManager));
-        deal(address(positionManager), _flethAdded);
-        WETH.deposit{value: _flethAdded}();
-        vm.stopPrank();
 
         // Record initial balance
         uint initialBalance = WETH.balanceOf(address(memecoinTreasury));
@@ -128,17 +127,16 @@ contract MemecoinTreasuryTest is FlaunchTest {
     function test_CanClaimFeesDuringTransaction(uint _flethAdded) public {
         // Set the {PositionManager} fees for {MemecoinTreasury} to a positive amount
         vm.assume(_flethAdded > 0);
+        vm.assume(_flethAdded <= 1000 ether); // Reasonable upper bound to prevent overflow
+        
+        // Provide sufficient WETH to the {PositionManager} FIRST
+        deal(address(WETH), address(positionManager), _flethAdded);
+        
         positionManager.allocateFeesMock({
             _poolId: PoolId.wrap(bytes32('1')),
             _recipient: payable(address(memecoinTreasury)),
             _amount: _flethAdded
         });
-
-        // Provide sufficient native token to the {PositionManager}
-        vm.startPrank(address(positionManager));
-        deal(address(positionManager), _flethAdded);
-        WETH.deposit{value: _flethAdded}();
-        vm.stopPrank();
 
         // Record initial balance
         uint initialBalance = WETH.balanceOf(address(memecoinTreasury));

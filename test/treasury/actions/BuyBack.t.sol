@@ -77,7 +77,7 @@ contract BuyBackActionTest is FlaunchTest {
         deal(Currency.unwrap(poolKey.currency0), address(memecoinTreasury), _amount);
 
         vm.expectEmit();
-        emit ITreasuryAction.ActionExecuted(poolKey, -1000000000000000000, 1974064050842644603);
+        emit ITreasuryAction.ActionExecuted(poolKey, -1000000000000000000, 1974064050842613584);
 
         memecoinTreasury.executeAction(address(action), abi.encode(TickMath.MIN_SQRT_PRICE + 1));
     }

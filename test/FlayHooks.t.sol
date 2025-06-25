@@ -35,14 +35,14 @@ contract FlayHooksTest is FlaunchTest {
         _deployPlatform();
 
         // Deploy our PoolManager to the expected address and update our test contracts
-        deployCodeTo('PoolManager.sol', abi.encode(address(this)), 0x498581fF718922c3f8e6A244956aF099B2652b2b);
+        deployCodeTo('lib/v4-core/src/PoolManager.sol:PoolManager', abi.encode(address(this)), 0x498581fF718922c3f8e6A244956aF099B2652b2b);
         poolManager = PoolManager(0x498581fF718922c3f8e6A244956aF099B2652b2b);
         poolModifyPosition = new PoolModifyLiquidityTest(poolManager);
         poolSwap = new PoolSwap(poolManager);
 
         // Deploy our ERC20Mock tokens to specific addresses that will be supported on Base
-        deployCodeTo('ERC20Mock.sol', abi.encode(address(this)), 0x000000000D564D5be76f7f0d28fE52605afC7Cf8);
-        deployCodeTo('ERC20Mock.sol', abi.encode(address(this)), 0xF1A7000000950C7ad8Aff13118Bb7aB561A448ee);
+        deployCodeTo('test/tokens/ERC20Mock.sol:ERC20Mock', abi.encode(address(this)), 0x000000000D564D5be76f7f0d28fE52605afC7Cf8);
+        deployCodeTo('test/tokens/ERC20Mock.sol:ERC20Mock', abi.encode(address(this)), 0xF1A7000000950C7ad8Aff13118Bb7aB561A448ee);
 
         // Create 2 tokens for the tests
         token0 = ERC20Mock(0x000000000D564D5be76f7f0d28fE52605afC7Cf8);
@@ -50,7 +50,7 @@ contract FlayHooksTest is FlaunchTest {
 
         // Deploy our FlayHooks contract to a valid address
         deployCodeTo(
-            'FlayHooks.sol',
+            'src/contracts/FlayHooks.sol:FlayHooks',
             abi.encode(SQRT_PRICE_1_1, address(this)),
             VALID_FLAY_HOOKS_ADDRESS
         );

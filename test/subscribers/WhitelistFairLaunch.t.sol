@@ -507,7 +507,7 @@ contract WhitelistFairLaunchTest is FlaunchTest {
     }
 
     function test_CannotSetWhitelistPoolSwap_WithoutOwner(address _caller) public {
-        vm.assume(_caller != msg.sender);
+        vm.assume(_caller != address(this));
 
         vm.startPrank(_caller);
 
