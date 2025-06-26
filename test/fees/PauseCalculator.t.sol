@@ -4,6 +4,7 @@ pragma solidity ^0.8.26;
 import {CustomRevert} from '@uniswap/v4-core/src/libraries/CustomRevert.sol';
 import {Hooks, IHooks} from '@uniswap/v4-core/src/libraries/Hooks.sol';
 import {IPoolManager} from '@uniswap/v4-core/src/interfaces/IPoolManager.sol';
+import {SwapParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
 import {TickMath} from '@uniswap/v4-core/src/libraries/TickMath.sol';
 
@@ -57,7 +58,7 @@ contract PauseCalculatorTest is FlaunchTest {
 
         poolSwap.swap(
             poolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -0.01 ether,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
@@ -94,7 +95,7 @@ contract PauseCalculatorTest is FlaunchTest {
 
         poolSwap.swap(
             poolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -0.01 ether,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1

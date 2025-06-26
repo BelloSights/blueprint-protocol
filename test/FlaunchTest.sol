@@ -10,6 +10,7 @@ import {Deployers} from '@uniswap/v4-core/test/utils/Deployers.sol';
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
 import {PoolModifyLiquidityTest} from '@uniswap/v4-core/src/test/PoolModifyLiquidityTest.sol';
 import {IPoolManager, PoolManager} from '@uniswap/v4-core/src/PoolManager.sol';
+import {SwapParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 import {TickMath} from '@uniswap/v4-core/src/libraries/TickMath.sol';
 
 import {BidWall} from '@flaunch/bidwall/BidWall.sol';
@@ -45,6 +46,7 @@ import {IFLETH} from '@flaunch-interfaces/IFLETH.sol';
 import {PositionManagerMock} from './mocks/PositionManagerMock.sol';
 import {AnyPositionManagerMock} from './mocks/AnyPositionManagerMock.sol';
 import {WETH9} from './tokens/WETH9.sol';
+import {ModifyLiquidityParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
 
 
 contract FlaunchTest is Deployers {
@@ -348,7 +350,7 @@ contract FlaunchTest is Deployers {
         // Modify our position with additional ETH and tokens
         poolModifyPosition.modifyLiquidity(
             poolKey,
-            IPoolManager.ModifyLiquidityParams({
+            ModifyLiquidityParams({
                 // Set our tick boundaries
                 tickLower: TickMath.minUsableTick(poolKey.tickSpacing),
                 tickUpper: TickMath.maxUsableTick(poolKey.tickSpacing),
@@ -380,8 +382,8 @@ contract FlaunchTest is Deployers {
         vm.warp(block.timestamp + 365 days);
     }
 
-    function _getSwapParams(int _amount) internal pure returns (IPoolManager.SwapParams memory) {
-        return IPoolManager.SwapParams({
+    function _getSwapParams(int _amount) internal pure returns (SwapParams memory) {
+        return SwapParams({
             zeroForOne: true,
             amountSpecified: _amount,
             sqrtPriceLimitX96: TickMath.MAX_SQRT_PRICE

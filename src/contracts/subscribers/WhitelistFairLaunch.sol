@@ -6,6 +6,7 @@ import {Ownable} from '@solady/auth/Ownable.sol';
 import {BalanceDelta} from '@uniswap/v4-core/src/types/BalanceDelta.sol';
 import {IHooks} from '@uniswap/v4-core/src/libraries/Hooks.sol';
 import {IPoolManager} from '@uniswap/v4-core/src/interfaces/IPoolManager.sol';
+import {SwapParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 import {PoolId} from '@uniswap/v4-core/src/types/PoolId.sol';
 
 import {BaseSubscriber} from '@flaunch/subscribers/Base.sol';
@@ -129,7 +130,7 @@ contract WhitelistFairLaunch is BaseSubscriber, Ownable {
         // Decode our parameters to get the sender of the swap transaction
         (address sender,,) = abi.decode(
             _data,
-            (address, IPoolManager.SwapParams, BalanceDelta)
+            (address, SwapParams, BalanceDelta)
         );
 
         // Ensure that the sender is our whitelist swap contract

@@ -6,7 +6,7 @@ import {Ownable} from '@solady/auth/Ownable.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import {BalanceDelta} from '@uniswap/v4-core/src/types/BalanceDelta.sol';
-import {BaseHook} from '@uniswap-periphery/base/hooks/BaseHook.sol';
+import {BaseHook} from '@uniswap-periphery/utils/BaseHook.sol';
 import {BeforeSwapDelta, BeforeSwapDeltaLibrary, toBeforeSwapDelta} from '@uniswap/v4-core/src/types/BeforeSwapDelta.sol';
 import {Currency} from '@uniswap/v4-core/src/types/Currency.sol';
 import {IPoolManager} from '@uniswap/v4-core/src/interfaces/IPoolManager.sol';
@@ -15,6 +15,7 @@ import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
 import {PoolId, PoolIdLibrary} from '@uniswap/v4-core/src/types/PoolId.sol';
 import {SafeCast} from '@uniswap/v4-core/src/libraries/SafeCast.sol';
 import {StateLibrary} from '@uniswap/v4-core/src/libraries/StateLibrary.sol';
+import {SwapParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 
 import {BidWall} from '@flaunch/bidwall/BidWall.sol';
 
@@ -123,7 +124,7 @@ contract FlayHooks is BaseHook, InternalSwapPool, Ownable {
      * @dev As we call `poolManager.initialize` from the IHooks contract itself, we bypass this
      * hook call as therefore bypass the prevention.
      */
-    function beforeInitialize(address, PoolKey calldata, uint160) external view override onlyPoolManager returns (bytes4) {
+    function _beforeInitialize(address, PoolKey calldata, uint160) internal view override returns (bytes4) {
         revert CannotBeInitializedDirectly();
     }
 
@@ -143,12 +144,12 @@ contract FlayHooks is BaseHook, InternalSwapPool, Ownable {
      * @return beforeSwapDelta_ The hook's delta in specified and unspecified currencies. Positive: the hook is owed/took currency, negative: the hook owes/sent currency
      * @return swapFee_ The percentage fee applied to our swap
      */
-    function beforeSwap(
+    function _beforeSwap(
         address /* _sender */,
         PoolKey calldata _key,
-        IPoolManager.SwapParams memory _params,
+        SwapParams calldata _params,
         bytes calldata /* _hookData */
-    ) public override onlyPoolManager returns (
+    ) internal virtual override returns (
         bytes4 selector_,
         BeforeSwapDelta beforeSwapDelta_,
         uint24
@@ -191,13 +192,13 @@ contract FlayHooks is BaseHook, InternalSwapPool, Ownable {
      * @return selector_ The function selector for the hook
      * @return hookDeltaUnspecified_ The hook's delta in unspecified currency. Positive: the hook is owed/took currency, negative: the hook owes/sent currency
      */
-    function afterSwap(
+    function _afterSwap(
         address,
         PoolKey calldata _key,
-        IPoolManager.SwapParams calldata _params,
+        SwapParams calldata _params,
         BalanceDelta _delta,
         bytes calldata
-    ) public override onlyPoolManager returns (
+    ) internal virtual override returns (
         bytes4 selector_,
         int128 hookDeltaUnspecified_
     ) {
@@ -226,7 +227,7 @@ contract FlayHooks is BaseHook, InternalSwapPool, Ownable {
      */
     function _captureAndDepositFees(
         PoolKey calldata _key,
-        IPoolManager.SwapParams memory _params,
+        SwapParams memory _params,
         int128 _delta
     ) internal returns (uint swapFee_) {
         // Determine the swap fee currency based on swap parameters

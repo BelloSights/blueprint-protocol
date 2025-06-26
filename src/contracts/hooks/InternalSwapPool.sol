@@ -5,6 +5,7 @@ import {Currency, CurrencyLibrary} from '@uniswap/v4-core/src/types/Currency.sol
 import {IPoolManager} from '@uniswap/v4-core/src/interfaces/IPoolManager.sol';
 import {PoolId, PoolIdLibrary} from '@uniswap/v4-core/src/types/PoolId.sol';
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
+import {SwapParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 import {StateLibrary} from '@uniswap/v4-core/src/libraries/StateLibrary.sol';
 import {SwapMath} from '@uniswap/v4-core/src/libraries/SwapMath.sol';
 import {TickMath} from '@uniswap/v4-core/src/libraries/TickMath.sol';
@@ -95,7 +96,7 @@ abstract contract InternalSwapPool {
     function _internalSwap(
         IPoolManager _poolManager,
         PoolKey calldata _key,
-        IPoolManager.SwapParams memory _params,
+        SwapParams memory _params,
         bool _nativeIsZero
     ) internal returns (
         uint ethIn_,

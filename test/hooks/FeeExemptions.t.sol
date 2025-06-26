@@ -7,6 +7,7 @@ import {LPFeeLibrary} from '@uniswap/v4-core/src/libraries/LPFeeLibrary.sol';
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
 import {PoolIdLibrary} from '@uniswap/v4-core/src/types/PoolId.sol';
 import {IPoolManager} from '@uniswap/v4-core/src/PoolManager.sol';
+import {SwapParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 import {TickMath} from '@uniswap/v4-core/src/libraries/TickMath.sol';
 
 import {InternalSwapPool} from '@flaunch/hooks/InternalSwapPool.sol';
@@ -126,7 +127,7 @@ contract FeeExemptionsTest is FlaunchTest {
 
         // Action our swap
         _swap(
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -1 ether,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
@@ -156,7 +157,7 @@ contract FeeExemptionsTest is FlaunchTest {
 
         // Action our swap
         _swap(
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -1 ether,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
@@ -182,7 +183,7 @@ contract FeeExemptionsTest is FlaunchTest {
 
         // Action our swap
         _swap(
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: 1 ether,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
@@ -197,7 +198,7 @@ contract FeeExemptionsTest is FlaunchTest {
 
         // Action our swap
         _swap(
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: 1 ether,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
@@ -235,7 +236,7 @@ contract FeeExemptionsTest is FlaunchTest {
 
         // Action our swap
         _swap(
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: 1 ether,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
@@ -256,7 +257,7 @@ contract FeeExemptionsTest is FlaunchTest {
 
         // Action our swap
         _swap(
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: 1 ether,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
@@ -282,7 +283,7 @@ contract FeeExemptionsTest is FlaunchTest {
 
         // Action our swap
         _swap(
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: 1 ether,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
@@ -311,7 +312,7 @@ contract FeeExemptionsTest is FlaunchTest {
 
         // Action our swap
         _swap(
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -1 ether,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
@@ -324,7 +325,7 @@ contract FeeExemptionsTest is FlaunchTest {
         _;
     }
 
-    function _swap(IPoolManager.SwapParams memory _swapParams) internal {
+    function _swap(SwapParams memory _swapParams) internal {
         poolSwap.swap(
             _poolKey,
             _swapParams

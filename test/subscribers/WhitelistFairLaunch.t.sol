@@ -3,6 +3,7 @@ pragma solidity ^0.8.26;
 
 import {CustomRevert} from '@uniswap/v4-core/src/libraries/CustomRevert.sol';
 import {IPoolManager} from '@uniswap/v4-core/src/interfaces/IPoolManager.sol';
+import {SwapParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 import {Hooks, IHooks} from '@uniswap/v4-core/src/libraries/Hooks.sol';
 import {PoolId} from '@uniswap/v4-core/src/types/PoolId.sol';
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
@@ -44,7 +45,7 @@ contract WhitelistFairLaunchTest is FlaunchTest {
     /// Define some Fair Launch parameters
     uint INITIAL_TOKEN_FAIR_LAUNCH = 1e18;
 
-    IPoolManager.SwapParams swapParams = IPoolManager.SwapParams({
+    SwapParams swapParams = SwapParams({
         zeroForOne: true,
         amountSpecified: -0.001 ether,
         sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1

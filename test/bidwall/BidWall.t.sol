@@ -3,6 +3,7 @@ pragma solidity ^0.8.26;
 
 import {BalanceDelta} from '@uniswap/v4-core/src/types/BalanceDelta.sol';
 import {IPoolManager} from '@uniswap/v4-core/src/interfaces/IPoolManager.sol';
+import {SwapParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
 import {PoolManager} from '@uniswap/v4-core/src/PoolManager.sol';
 import {PoolIdLibrary, PoolId} from '@uniswap/v4-core/src/types/PoolId.sol';
@@ -18,6 +19,7 @@ import {ProtocolRoles} from '@flaunch/libraries/ProtocolRoles.sol';
 import {MemecoinMock} from 'test/mocks/MemecoinMock.sol';
 
 import {FlaunchTest} from '../FlaunchTest.sol';
+import {ModifyLiquidityParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
 
 
 contract BidWallTest is FlaunchTest {
@@ -122,7 +124,7 @@ contract BidWallTest is FlaunchTest {
         // Make a swap as alice
         vm.startPrank(alice);
         _swap(
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: 5 ether,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
@@ -144,7 +146,7 @@ contract BidWallTest is FlaunchTest {
     function test_CanStoreFeeAllocationInInternalSwapPoolWhenETHIsSpecifiedToken() external poolHasLiquidity {
         vm.startPrank(alice);
         _swap(
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: false,
                 amountSpecified: 5 ether,
                 sqrtPriceLimitX96: TickMath.MAX_SQRT_PRICE - 1
@@ -203,7 +205,7 @@ contract BidWallTest is FlaunchTest {
         // Perform a swap that builds fees ready to convert
         poolSwap.swap(
             poolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: !_flipped,
                 amountSpecified: -2 ether,
                 sqrtPriceLimitX96: !_flipped ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
@@ -218,7 +220,7 @@ contract BidWallTest is FlaunchTest {
         // Perform another swap that will that will initialize the BidWall with the fees earned
         poolSwap.swap(
             poolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: !_flipped,
                 amountSpecified: -2 ether,
                 sqrtPriceLimitX96: !_flipped ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
@@ -273,7 +275,7 @@ contract BidWallTest is FlaunchTest {
         // create 0.6~ in swap fees, which will pass our threshold and initialize
         vm.startPrank(alice);
         _swap(
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: 250 ether,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
@@ -333,7 +335,7 @@ contract BidWallTest is FlaunchTest {
         // Make some FairLaunch swaps
         vm.startPrank(alice);
         _swap(
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: !_flipped,
                 amountSpecified: -1 ether,
                 sqrtPriceLimitX96: !_flipped ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
@@ -343,7 +345,7 @@ contract BidWallTest is FlaunchTest {
         // End FairLaunch with another swap
         vm.warp(block.timestamp + 1 days);
         _swap(
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: !_flipped,
                 amountSpecified: -0.001 ether,
                 sqrtPriceLimitX96: !_flipped ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
@@ -362,7 +364,7 @@ contract BidWallTest is FlaunchTest {
         vm.startPrank(alice);
         vm.warp(block.timestamp + 1 days);
         _swap(
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: !_flipped,
                 amountSpecified: -0.001 ether,
                 sqrtPriceLimitX96: !_flipped ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
@@ -422,7 +424,7 @@ contract BidWallTest is FlaunchTest {
         // Perform a swap that builds fees
         poolSwap.swap(
             poolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: false,
                 amountSpecified: -1 ether,
                 sqrtPriceLimitX96: TickMath.MAX_SQRT_PRICE - 1
@@ -442,7 +444,7 @@ contract BidWallTest is FlaunchTest {
         // Perform another swap that will trigger the stale liquidity to be added
         poolSwap.swap(
             poolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: false,
                 amountSpecified: -1 ether,
                 sqrtPriceLimitX96: TickMath.MAX_SQRT_PRICE - 1
@@ -498,7 +500,7 @@ contract BidWallTest is FlaunchTest {
         // Make a swap that sells some token into the BidWall position
         memecoin.approve(address(poolSwap), type(uint).max);
         _swap(
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: false,
                 amountSpecified: -0.0025 ether,
                 sqrtPriceLimitX96: TickMath.MAX_SQRT_PRICE - 1
@@ -534,7 +536,7 @@ contract BidWallTest is FlaunchTest {
 
     // Helpers
 
-    function _swap(IPoolManager.SwapParams memory swapParams) internal returns (BalanceDelta delta) {
+    function _swap(SwapParams memory swapParams) internal returns (BalanceDelta delta) {
         delta = poolSwap.swap(
             poolKey,
             swapParams
@@ -548,7 +550,7 @@ contract BidWallTest is FlaunchTest {
         vm.startPrank(alice);
         poolModifyPosition.modifyLiquidity(
             poolKey,
-            IPoolManager.ModifyLiquidityParams({
+            ModifyLiquidityParams({
                 tickLower: TickMath.minUsableTick(TICK_SPACING),
                 tickUpper: TickMath.maxUsableTick(TICK_SPACING),
                 liquidityDelta: 1000 ether,

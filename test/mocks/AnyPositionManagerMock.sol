@@ -4,6 +4,7 @@ pragma solidity ^0.8.26;
 import {BeforeSwapDelta, toBeforeSwapDelta} from '@uniswap/v4-core/src/types/BeforeSwapDelta.sol';
 import {Currency} from '@uniswap/v4-core/src/types/Currency.sol';
 import {IPoolManager} from '@uniswap/v4-core/src/interfaces/IPoolManager.sol';
+import {SwapParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 import {PoolId} from '@uniswap/v4-core/src/types/PoolId.sol';
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
 
@@ -39,7 +40,7 @@ contract AnyPositionManagerMock is AnyPositionManager {
     function captureSwapFees(
         IPoolManager poolManager,
         PoolKey calldata key,
-        IPoolManager.SwapParams calldata _params,
+        SwapParams calldata _params,
         Currency swapFeeCurrency,
         uint swapAmount,
         FeeExemptions.FeeExemption calldata swapFeeOverride
@@ -49,12 +50,12 @@ contract AnyPositionManagerMock is AnyPositionManager {
         return _captureSwapFees(poolManager, key, _params, IFeeCalculator(address(0)), swapFeeCurrency, swapAmount, swapFeeOverride);
     }
 
-    function captureDelta(PoolKey memory /* _poolKey */, IPoolManager.SwapParams memory _params, BeforeSwapDelta _delta) public returns (int amount0_, int amount1_) {
+    function captureDelta(PoolKey memory /* _poolKey */, SwapParams memory _params, BeforeSwapDelta _delta) public returns (int amount0_, int amount1_) {
         _captureDelta(_params, TS_FL_AMOUNT0, TS_FL_AMOUNT1, _delta);
         return (_tload(TS_FL_AMOUNT0), _tload(TS_FL_AMOUNT1));
     }
 
-    function captureDeltaSwapFee(PoolKey memory /* _poolKey */, IPoolManager.SwapParams memory _params, uint _delta) public returns (int amount0_, int amount1_) {
+    function captureDeltaSwapFee(PoolKey memory /* _poolKey */, SwapParams memory _params, uint _delta) public returns (int amount0_, int amount1_) {
         _captureDeltaSwapFee(_params, TS_FL_FEE0, TS_FL_FEE1, _delta);
         return (_tload(TS_FL_FEE0), _tload(TS_FL_FEE1));
     }

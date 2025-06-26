@@ -12,8 +12,9 @@ import {PoolId, PoolIdLibrary} from '@uniswap/v4-core/src/types/PoolId.sol';
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
 import {SafeCast} from '@uniswap/v4-core/src/libraries/SafeCast.sol';
 import {StateLibrary} from '@uniswap/v4-core/src/libraries/StateLibrary.sol';
+import {SwapParams, ModifyLiquidityParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 
-import {BaseHook} from '@uniswap-periphery/base/hooks/BaseHook.sol';
+import {BaseHook} from '@uniswap-periphery/utils/BaseHook.sol';
 
 import {BidWall} from '@flaunch/bidwall/BidWall.sol';
 import {CurrencySettler} from '@flaunch/libraries/CurrencySettler.sol';
@@ -285,7 +286,7 @@ contract AnyPositionManager is BaseHook, FeeDistributor, InternalSwapPool, Store
      * @dev As we call `poolManager.initialize` from the IHooks contract itself, we bypass this
      * hook call therefore bypassing the prevention.
      */
-    function beforeInitialize(address, PoolKey calldata, uint160) external view override onlyPoolManager returns (bytes4) {
+    function _beforeInitialize(address, PoolKey calldata, uint160) internal view override returns (bytes4) {
         revert CannotBeInitializedDirectly();
     }
 
@@ -302,12 +303,12 @@ contract AnyPositionManager is BaseHook, FeeDistributor, InternalSwapPool, Store
      * @return beforeSwapDelta_ The hook's delta in specified and unspecified currencies. Positive: the hook is owed/took currency, negative: the hook owes/sent currency
      * @return swapFee_ The percentage fee applied to our swap
      */
-    function beforeSwap(
+    function _beforeSwap(
         address _sender,
         PoolKey calldata _key,
-        IPoolManager.SwapParams memory _params,
+        SwapParams calldata _params,
         bytes calldata _hookData
-    ) public override onlyPoolManager returns (
+    ) internal virtual override returns (
         bytes4 selector_,
         BeforeSwapDelta beforeSwapDelta_,
         uint24
@@ -379,13 +380,13 @@ contract AnyPositionManager is BaseHook, FeeDistributor, InternalSwapPool, Store
      * @return selector_ The function selector for the hook
      * @return hookDeltaUnspecified_ The hook's delta in unspecified currency. Positive: the hook is owed/took currency, negative: the hook owes/sent currency
      */
-    function afterSwap(
+    function _afterSwap(
         address _sender,
         PoolKey calldata _key,
-        IPoolManager.SwapParams calldata _params,
+        SwapParams calldata _params,
         BalanceDelta _delta,
         bytes calldata _hookData
-    ) public virtual override onlyPoolManager returns (
+    ) internal virtual override returns (
         bytes4 selector_,
         int128 hookDeltaUnspecified_
     ) {
@@ -452,14 +453,14 @@ contract AnyPositionManager is BaseHook, FeeDistributor, InternalSwapPool, Store
      * @return selector_ The function selector for the hook
      * @return BalanceDelta The hook's delta in token0 and token1. Positive: the hook is owed/took currency, negative: the hook owes/sent currency
      */
-    function afterAddLiquidity(
+    function _afterAddLiquidity(
         address _sender,
         PoolKey calldata _key,
-        IPoolManager.ModifyLiquidityParams calldata,
+        ModifyLiquidityParams calldata,
         BalanceDelta _delta,
         BalanceDelta _feesAccrued,
         bytes calldata
-    ) external override onlyPoolManager returns (
+    ) internal override returns (
         bytes4 selector_,
         BalanceDelta
     ) {
@@ -479,14 +480,14 @@ contract AnyPositionManager is BaseHook, FeeDistributor, InternalSwapPool, Store
      *
      * @return selector_ The function selector for the hook
      */
-    function afterRemoveLiquidity(
+    function _afterRemoveLiquidity(
         address _sender,
         PoolKey calldata _key,
-        IPoolManager.ModifyLiquidityParams calldata,
+        ModifyLiquidityParams calldata,
         BalanceDelta _delta,
         BalanceDelta _feesAccrued,
         bytes calldata
-    ) public override onlyPoolManager returns (bytes4 selector_, BalanceDelta) {
+    ) internal virtual override returns (bytes4 selector_, BalanceDelta) {
         selector_ = IHooks.afterRemoveLiquidity.selector;
 
         // Emit our pool state update to listeners
@@ -503,7 +504,7 @@ contract AnyPositionManager is BaseHook, FeeDistributor, InternalSwapPool, Store
      *
      * @return selector_ The function selector for the hook
      */
-    function afterDonate(address _sender, PoolKey calldata _key, uint _amount0, uint _amount1, bytes calldata) external override onlyPoolManager returns (bytes4 selector_) {
+    function _afterDonate(address _sender, PoolKey calldata _key, uint _amount0, uint _amount1, bytes calldata) internal override returns (bytes4 selector_) {
         selector_ = IHooks.afterDonate.selector;
 
         // Emit our pool state update to listeners
@@ -580,7 +581,7 @@ contract AnyPositionManager is BaseHook, FeeDistributor, InternalSwapPool, Store
      *
      * @return bytes Empty data; nothing will be returned
      */
-    function _unlockCallback(bytes calldata _data) internal virtual override returns (bytes memory) {
+    function _unlockCallback(bytes calldata _data) internal virtual returns (bytes memory) {
         bidWall.closeBidWall(abi.decode(_data, (PoolKey)));
     }
 
@@ -600,7 +601,7 @@ contract AnyPositionManager is BaseHook, FeeDistributor, InternalSwapPool, Store
      */
     function _captureAndDepositFees(
         PoolKey calldata _key,
-        IPoolManager.SwapParams memory _params,
+        SwapParams memory _params,
         address _sender,
         int128 _delta,
         bytes calldata _hookData
@@ -821,7 +822,7 @@ contract AnyPositionManager is BaseHook, FeeDistributor, InternalSwapPool, Store
      * @param _delta The `BeforeSwapDelta` that is being captured
      */
     function _captureDelta(
-        IPoolManager.SwapParams memory _params,
+        SwapParams memory _params,
         bytes32 _key_amount0,
         bytes32 _key_amount1,
         BeforeSwapDelta _delta
@@ -846,7 +847,7 @@ contract AnyPositionManager is BaseHook, FeeDistributor, InternalSwapPool, Store
      * @param _delta The `uint` that is being captured for the fee
      */
     function _captureDeltaSwapFee(
-        IPoolManager.SwapParams memory _params,
+        SwapParams memory _params,
         bytes32 _key_fee0,
         bytes32 _key_fee1,
         uint _delta

@@ -9,6 +9,7 @@ import {BalanceDelta} from '@uniswap/v4-core/src/types/BalanceDelta.sol';
 import {Currency} from '@uniswap/v4-core/src/types/Currency.sol';
 import {IHooks} from '@uniswap/v4-core/src/libraries/Hooks.sol';
 import {IPoolManager} from '@uniswap/v4-core/src/interfaces/IPoolManager.sol';
+import {SwapParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 import {PoolId} from '@uniswap/v4-core/src/types/PoolId.sol';
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
 import {SafeCast} from '@uniswap/v4-core/src/libraries/SafeCast.sol';
@@ -141,7 +142,7 @@ contract FlaunchPremineZap {
         // Action our swap on the {PoolSwap} contract with max range
         BalanceDelta delta = poolSwap.swap({
             _key: _poolKey,
-            _params: IPoolManager.SwapParams({
+                            _params: SwapParams({
                 zeroForOne: !flipped,
                 amountSpecified: _premineAmount.toInt256(),
                 sqrtPriceLimitX96: !flipped
@@ -182,7 +183,7 @@ contract FlaunchPremineZap {
         if (address(feeCalculator) != address(0)) {
             baseSwapFee = feeCalculator.determineSwapFee({
                 _poolKey: fakePoolKey,
-                _params: IPoolManager.SwapParams({
+                _params: SwapParams({
                     zeroForOne: false,
                     amountSpecified: _premineAmount.toInt256(),
                     sqrtPriceLimitX96: TickMath.MAX_SQRT_PRICE

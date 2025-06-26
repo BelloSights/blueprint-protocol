@@ -3,6 +3,7 @@ pragma solidity ^0.8.26;
 
 import {BalanceDelta} from '@uniswap/v4-core/src/types/BalanceDelta.sol';
 import {IPoolManager} from '@uniswap/v4-core/src/interfaces/IPoolManager.sol';
+import {SwapParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
 import {PoolId} from '@uniswap/v4-core/src/types/PoolId.sol';
 
@@ -25,7 +26,7 @@ contract StaticFeeCalculator is IFeeCalculator {
      */
     function determineSwapFee(
         PoolKey memory /* _poolKey */,
-        IPoolManager.SwapParams memory /* _params */,
+        SwapParams memory /* _params */,
         uint24 _baseFee
     ) public pure returns (uint24 swapFee_) {
         return _baseFee;
@@ -35,7 +36,7 @@ contract StaticFeeCalculator is IFeeCalculator {
      * Tracks information regarding ongoing swaps for pools, though for this static
      * approach we only confirm the caller and don't process any further information.
      */
-    function trackSwap(address, PoolKey calldata, IPoolManager.SwapParams calldata, BalanceDelta, bytes calldata) public view {}
+    function trackSwap(address, PoolKey calldata, SwapParams calldata, BalanceDelta, bytes calldata) public view {}
 
     /**
      * We don't need any specific Flaunch parameters to be assigned to this calculator, so we

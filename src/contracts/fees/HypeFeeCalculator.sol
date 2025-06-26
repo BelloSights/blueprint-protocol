@@ -7,6 +7,7 @@ import {BalanceDelta} from '@uniswap/v4-core/src/types/BalanceDelta.sol';
 import {Currency} from '@uniswap/v4-core/src/types/Currency.sol';
 import {FixedPointMathLib} from '@solady/utils/FixedPointMathLib.sol';
 import {IPoolManager} from '@uniswap/v4-core/src/interfaces/IPoolManager.sol';
+import {SwapParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
 import {PoolId, PoolIdLibrary} from '@uniswap/v4-core/src/types/PoolId.sol';
 import {TickMath} from '@uniswap/v4-core/src/libraries/TickMath.sol';
@@ -132,7 +133,7 @@ contract HypeFeeCalculator is IFeeCalculator, Ownable {
      */
     function determineSwapFee(
         PoolKey memory _poolKey,
-        IPoolManager.SwapParams memory _params,
+        SwapParams memory _params,
         uint24 _baseFee
     ) external view override returns (uint24 swapFee_) {
         PoolId poolId = _poolKey.toId();
@@ -186,7 +187,7 @@ contract HypeFeeCalculator is IFeeCalculator, Ownable {
     function trackSwap(
         address /* _sender */,
         PoolKey calldata _key,
-        IPoolManager.SwapParams calldata /* _params */,
+        SwapParams calldata /* _params */,
         BalanceDelta _delta,
         bytes calldata /* _hookData */
     ) external override {
@@ -247,7 +248,7 @@ contract HypeFeeCalculator is IFeeCalculator, Ownable {
     function _getTokensBoughtFromFairLaunch(
         PoolKey memory _poolKey,
         FairLaunch.FairLaunchInfo memory flInfo,
-        IPoolManager.SwapParams memory _params
+        SwapParams memory _params
     ) internal view returns (uint tokensOut) {
         bool nativeIsZero = nativeToken == Currency.unwrap(_poolKey.currency0);
 

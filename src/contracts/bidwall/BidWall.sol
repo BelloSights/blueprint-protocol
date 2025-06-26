@@ -11,6 +11,7 @@ import {BalanceDelta} from '@uniswap/v4-core/src/types/BalanceDelta.sol';
 import {Currency, CurrencyLibrary} from '@uniswap/v4-core/src/types/Currency.sol';
 import {Hooks, IHooks} from '@uniswap/v4-core/src/libraries/Hooks.sol';
 import {IPoolManager} from '@uniswap/v4-core/src/interfaces/IPoolManager.sol';
+import {ModifyLiquidityParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 import {LiquidityAmounts} from '@uniswap/v4-core/test/utils/LiquidityAmounts.sol';
 import {PoolId, PoolIdLibrary} from '@uniswap/v4-core/src/types/PoolId.sol';
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
@@ -589,7 +590,7 @@ contract BidWall is AccessControl, Ownable {
     ) {
         (delta_, ) = poolManager.modifyLiquidity({
             key: _poolKey,
-            params: IPoolManager.ModifyLiquidityParams({
+            params: ModifyLiquidityParams({
                 tickLower: _tickLower,
                 tickUpper: _tickUpper,
                 liquidityDelta: _liquidityDelta,

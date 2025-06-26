@@ -6,6 +6,7 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
 import {PoolIdLibrary, PoolId} from '@uniswap/v4-core/src/types/PoolId.sol';
 import {IPoolManager, PoolManager, Pool} from '@uniswap/v4-core/src/PoolManager.sol';
+import {SwapParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 import {TickMath} from '@uniswap/v4-core/src/libraries/TickMath.sol';
 import {Currency} from '@uniswap/v4-core/src/types/Currency.sol';
 
@@ -739,7 +740,7 @@ contract FeeDistributorTest is FlaunchTest {
         // Action our swap
         poolSwap.swap(
             _poolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: _zeroForOne,
                 amountSpecified: _amountSpecified,
                 sqrtPriceLimitX96: _zeroForOne ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1

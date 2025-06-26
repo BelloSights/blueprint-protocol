@@ -6,6 +6,7 @@ import {SafeCastLib} from '@solady/utils/SafeCastLib.sol';
 import {BalanceDelta} from '@uniswap/v4-core/src/types/BalanceDelta.sol';
 import {Currency} from '@uniswap/v4-core/src/types/Currency.sol';
 import {IPoolManager} from '@uniswap/v4-core/src/interfaces/IPoolManager.sol';
+import {SwapParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
 
 import {PoolSwap} from '@flaunch/zaps/PoolSwap.sol';
@@ -61,7 +62,7 @@ contract BuyBackAction is ITreasuryAction {
         // Action our swap against the {PoolSwap} contract
         BalanceDelta delta = poolSwap.swap({
             _key: _poolKey,
-            _params: IPoolManager.SwapParams({
+                            _params: SwapParams({
                 zeroForOne: nativeToken == _poolKey.currency0,
                 amountSpecified: -amountSpecified.toInt256(),
                 sqrtPriceLimitX96: sqrtPriceLimitX96

@@ -5,6 +5,7 @@ import {Ownable} from '@solady/auth/Ownable.sol';
 
 import {BalanceDelta} from '@uniswap/v4-core/src/types/BalanceDelta.sol';
 import {Currency, CurrencyLibrary} from '@uniswap/v4-core/src/types/Currency.sol';
+import {ModifyLiquidityParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 import {IHooks} from '@uniswap/v4-core/src/libraries/Hooks.sol';
 import {IPoolManager} from '@uniswap/v4-core/src/interfaces/IPoolManager.sol';
 import {LiquidityAmounts} from '@uniswap/v4-core/test/utils/LiquidityAmounts.sol';
@@ -269,7 +270,7 @@ contract BuyBackAndBurnFlay is BaseSubscriber, Ownable {
     ) internal {
         (BalanceDelta delta_,) = poolManager.modifyLiquidity({
             key: flayPoolKey,
-            params: IPoolManager.ModifyLiquidityParams({
+            params: ModifyLiquidityParams({
                 tickLower: _tickLower,
                 tickUpper: _tickUpper,
                 liquidityDelta: _liquidityDelta,

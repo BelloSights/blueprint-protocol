@@ -7,6 +7,7 @@ import {Hooks, IHooks} from '@uniswap/v4-core/src/libraries/Hooks.sol';
 import {IPoolManager} from '@uniswap/v4-core/src/interfaces/IPoolManager.sol';
 import {IUnlockCallback} from '@uniswap/v4-core/src/interfaces/callback/IUnlockCallback.sol';
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
+import {SwapParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 import {TransientStateLibrary} from '@uniswap/v4-core/src/libraries/TransientStateLibrary.sol';
 
 import {CurrencySettler} from '@flaunch/libraries/CurrencySettler.sol';
@@ -35,7 +36,7 @@ contract PoolSwap is IUnlockCallback {
     struct CallbackData {
         address sender;
         PoolKey key;
-        IPoolManager.SwapParams params;
+        SwapParams params;
         address referrer;
     }
 
@@ -59,7 +60,7 @@ contract PoolSwap is IUnlockCallback {
      *
      * @return The BalanceDelta of the swap
      */
-    function swap(PoolKey memory _key, IPoolManager.SwapParams memory _params) public payable virtual returns (BalanceDelta) {
+    function swap(PoolKey memory _key, SwapParams memory _params) public payable virtual returns (BalanceDelta) {
         return swap(_key, _params, address(0));
     }
 
@@ -72,7 +73,7 @@ contract PoolSwap is IUnlockCallback {
      *
      * @return delta_ The BalanceDelta of the swap
      */
-    function swap(PoolKey memory _key, IPoolManager.SwapParams memory _params, address _referrer) public payable virtual returns (BalanceDelta delta_) {
+    function swap(PoolKey memory _key, SwapParams memory _params, address _referrer) public payable virtual returns (BalanceDelta delta_) {
         delta_ = abi.decode(
             manager.unlock(abi.encode(CallbackData(msg.sender, _key, _params, _referrer))),
             (BalanceDelta)

@@ -23,6 +23,7 @@ import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
 import {PoolId, PoolIdLibrary} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
+import {LPFeeLibrary} from "@uniswap/v4-core/src/libraries/LPFeeLibrary.sol";
 
 import {BlueprintProtocolHook} from "@flaunch/hooks/BlueprintProtocolHook.sol";
 import {BlueprintBuybackEscrow} from "@flaunch/escrows/BlueprintBuybackEscrow.sol";
@@ -250,10 +251,10 @@ contract BlueprintFactory is
 
         // Set default fee configuration (60/20/10/10 split)
         feeConfig = FeeConfiguration({
-            buybackFee: 60_00, // 60%
-            creatorFee: 20_00, // 20%
-            bpTreasuryFee: 10_00, // 10%
-            rewardPoolFee: 10_00, // 10%
+            buybackFee: 6000, // 0.6%
+            creatorFee: 2000, // 0.2%
+            bpTreasuryFee: 1000, // 0.1%
+            rewardPoolFee: 1000, // 0.1%
             active: true
         });
 
@@ -1142,7 +1143,7 @@ contract BlueprintFactory is
      * @param _tokenUri The token URI
      * @param _initialSupply The initial token supply (default 10B if 0)
      * @return creatorToken The address of the created token
-     * @return treasury The address of the creator's treasury
+     * @return treasuryAddress The address of the creator's treasury
      */
     function launchCreatorCoin(
         address _creator,
@@ -1154,7 +1155,7 @@ contract BlueprintFactory is
         external
         onlyRole(CREATOR_ROLE)
         whenNotPaused
-        returns (address creatorToken, address payable treasury)
+        returns (address creatorToken, address payable treasuryAddress)
     {
         if (!initialized) revert BlueprintNetworkNotInitialized();
         if (_creator == address(0)) revert InvalidParameters();
@@ -1286,14 +1287,14 @@ contract BlueprintFactory is
         string calldata _symbol,
         string calldata _tokenUri,
         uint256 _initialSupply
-    ) internal returns (address creatorToken, address payable treasury) {
+    ) internal returns (address creatorToken, address payable treasuryAddress) {
         // Use default supply if not specified
         uint256 supply = _initialSupply == 0
             ? TokenSupply.INITIAL_SUPPLY
             : _initialSupply;
 
         // Create buyback escrow as treasury directly
-        treasury = _createCreatorBuybackEscrow(_creator);
+        treasuryAddress = _createCreatorBuybackEscrow(_creator);
 
         // Create the creator token
         creatorToken = _createCreatorToken(
@@ -1302,13 +1303,13 @@ contract BlueprintFactory is
             _tokenUri,
             supply,
             _creator,
-            treasury
+            treasuryAddress
         );
 
         // Create pool and register
-        _createPoolAndRegister(creatorToken, treasury, supply, _creator);
+        _createPoolAndRegister(creatorToken, treasuryAddress, supply, _creator);
 
-        return (creatorToken, treasury);
+        return (creatorToken, treasuryAddress);
     }
 
     /**
@@ -1316,7 +1317,7 @@ contract BlueprintFactory is
      */
     function _createPoolAndRegister(
         address creatorToken,
-        address payable treasury,
+        address payable treasuryAddress,
         uint256 supply,
         address _creator
     ) internal {
@@ -1330,7 +1331,7 @@ contract BlueprintFactory is
         PoolKey memory poolKey = PoolKey({
             currency0: Currency.wrap(!currencyFlipped ? bpToken : creatorToken),
             currency1: Currency.wrap(currencyFlipped ? bpToken : creatorToken),
-            fee: 3000, // 0.3% fee
+            fee: LPFeeLibrary.DYNAMIC_FEE_FLAG, // Use dynamic fee flag for hook-managed fees
             tickSpacing: 60,
             hooks: IHooks(address(blueprintHook))
         });
@@ -1341,7 +1342,7 @@ contract BlueprintFactory is
         // Store pool information in the hook for swap routing
         blueprintHook.registerCreatorPool(
             creatorToken,
-            address(treasury),
+            address(treasuryAddress),
             poolKey
         );
 
@@ -1351,7 +1352,7 @@ contract BlueprintFactory is
         emit CreatorTokenLaunched(
             creatorToken,
             _creator,
-            address(treasury),
+            address(treasuryAddress),
             poolKey.toId(),
             0 // No tokenId since we're not using Flaunch
         );
@@ -1369,7 +1370,7 @@ contract BlueprintFactory is
         PoolKey memory ethBpPoolKey = PoolKey({
             currency0: currency0,
             currency1: currency1,
-            fee: 3000, // 0.3% fee
+            fee: LPFeeLibrary.DYNAMIC_FEE_FLAG, // Use dynamic fee flag for hook-managed fees
             tickSpacing: 60,
             hooks: IHooks(address(blueprintHook))
         });
@@ -1480,19 +1481,19 @@ contract BlueprintFactory is
         bytes32 salt = keccak256(abi.encodePacked(_creator, block.timestamp));
 
         // Deploy the buyback escrow using CREATE2 (serves as enhanced treasury)
-        address payable treasury = payable(
+        address payable treasuryAddress = payable(
             LibClone.cloneDeterministic(buybackEscrowImplementation, salt)
         );
 
         // Initialize the buyback escrow as treasury
-        BlueprintBuybackEscrow(treasury).initialize(
+        BlueprintBuybackEscrow(treasuryAddress).initialize(
             poolManager,
             nativeToken,
             blueprintToken,
             address(this) // Factory is the admin
         );
 
-        return treasury;
+        return treasuryAddress;
     }
 
     /**

@@ -4,6 +4,7 @@ pragma solidity ^0.8.26;
 import {Currency} from '@uniswap/v4-core/src/types/Currency.sol';
 import {IHooks} from '@uniswap/v4-core/src/libraries/Hooks.sol';
 import {IPoolManager} from '@uniswap/v4-core/src/interfaces/IPoolManager.sol';
+import {SwapParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 import {PoolId} from '@uniswap/v4-core/src/types/PoolId.sol';
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
 import {TickMath} from '@uniswap/v4-core/src/libraries/TickMath.sol';
@@ -287,7 +288,7 @@ contract ReferralEscrowTest is FlaunchTest {
                 hooks: IHooks(positionManager),
                 tickSpacing: 60
             }),
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: !flipped,
                 amountSpecified: -int(amount),
                 sqrtPriceLimitX96: !flipped ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1

@@ -4,6 +4,7 @@ pragma solidity ^0.8.26;
 import {Currency} from '@uniswap/v4-core/src/types/Currency.sol';
 import {Hooks, IHooks} from '@uniswap/v4-core/src/libraries/Hooks.sol';
 import {IPoolManager} from '@uniswap/v4-core/src/interfaces/IPoolManager.sol';
+import {SwapParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
 import {Pool} from '@uniswap/v4-core/src/libraries/Pool.sol';
 import {PoolManager} from '@uniswap/v4-core/src/PoolManager.sol';
@@ -16,6 +17,7 @@ import {ProtocolRoles} from '@flaunch/libraries/ProtocolRoles.sol';
 
 import {ERC20Mock} from './tokens/ERC20Mock.sol';
 import {FlaunchTest} from './FlaunchTest.sol';
+import {ModifyLiquidityParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
 
 
 contract FlayHooksTest is FlaunchTest {
@@ -140,7 +142,7 @@ contract FlayHooksTest is FlaunchTest {
         // Modify our position with additional ETH and tokens
         poolModifyPosition.modifyLiquidity(
             poolKey,
-            IPoolManager.ModifyLiquidityParams({
+            ModifyLiquidityParams({
                 tickLower: TickMath.minUsableTick(poolKey.tickSpacing),
                 tickUpper: TickMath.maxUsableTick(poolKey.tickSpacing),
                 liquidityDelta: 10 ether,
@@ -163,7 +165,7 @@ contract FlayHooksTest is FlaunchTest {
 
             poolSwap.swap(
                 poolKey,
-                IPoolManager.SwapParams({
+                SwapParams({
                     zeroForOne: zeroForOne,
                     amountSpecified: flipSwapValue ? swapValue : -swapValue,
                     sqrtPriceLimitX96: zeroForOne ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
@@ -192,7 +194,7 @@ contract FlayHooksTest is FlaunchTest {
         // Modify our position with additional ETH and tokens
         poolModifyPosition.modifyLiquidity(
             poolKey,
-            IPoolManager.ModifyLiquidityParams({
+            ModifyLiquidityParams({
                 tickLower: TickMath.minUsableTick(poolKey.tickSpacing),
                 tickUpper: TickMath.maxUsableTick(poolKey.tickSpacing),
                 liquidityDelta: 10 ether,
@@ -207,7 +209,7 @@ contract FlayHooksTest is FlaunchTest {
         // Make a swap big enough to trigger the BidWall
         poolSwap.swap(
             poolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -1000 ether,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
@@ -217,7 +219,7 @@ contract FlayHooksTest is FlaunchTest {
         // Now make a swap that will hit the BidWall liquidity
         poolSwap.swap(
             poolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: false,
                 amountSpecified: -1 ether,
                 sqrtPriceLimitX96: TickMath.MAX_SQRT_PRICE - 1

@@ -4,6 +4,7 @@ pragma solidity ^0.8.26;
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import {IPoolManager} from '@uniswap/v4-core/src/interfaces/IPoolManager.sol';
+import {SwapParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 import {toBeforeSwapDelta} from '@uniswap/v4-core/src/types/BeforeSwapDelta.sol';
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
 import {PoolIdLibrary, PoolId} from '@uniswap/v4-core/src/types/PoolId.sol';
@@ -203,7 +204,7 @@ contract PositionManagerTest is FlaunchTest {
         // ETH is specified, TOKEN is unspecified
         (amount0, amount1) = positionManager.captureDelta(
             poolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -1 ether,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
@@ -216,7 +217,7 @@ contract PositionManagerTest is FlaunchTest {
 
         (amount0, amount1) = positionManager.captureDeltaSwapFee(
             poolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -1 ether,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
@@ -231,7 +232,7 @@ contract PositionManagerTest is FlaunchTest {
         // TOKEN is specified, ETH is unspecified
         (amount0, amount1) = positionManager.captureDelta(
             poolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: 1 ether,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
@@ -244,7 +245,7 @@ contract PositionManagerTest is FlaunchTest {
 
         (amount0, amount1) = positionManager.captureDeltaSwapFee(
             poolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: 1 ether,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
@@ -259,7 +260,7 @@ contract PositionManagerTest is FlaunchTest {
         // TOKEN is specified, ETH is unspecified
         (amount0, amount1) = positionManager.captureDelta(
             poolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: false,
                 amountSpecified: -1 ether,
                 sqrtPriceLimitX96: TickMath.MAX_SQRT_PRICE - 1
@@ -272,7 +273,7 @@ contract PositionManagerTest is FlaunchTest {
 
         (amount0, amount1) = positionManager.captureDeltaSwapFee(
             poolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: false,
                 amountSpecified: -1 ether,
                 sqrtPriceLimitX96: TickMath.MAX_SQRT_PRICE - 1
@@ -287,7 +288,7 @@ contract PositionManagerTest is FlaunchTest {
         // ETH is specified, TOKEN is unspecified
         (amount0, amount1) = positionManager.captureDelta(
             poolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: false,
                 amountSpecified: 1 ether,
                 sqrtPriceLimitX96: TickMath.MAX_SQRT_PRICE - 1
@@ -300,7 +301,7 @@ contract PositionManagerTest is FlaunchTest {
 
         (amount0, amount1) = positionManager.captureDeltaSwapFee(
             poolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: false,
                 amountSpecified: 1 ether,
                 sqrtPriceLimitX96: TickMath.MAX_SQRT_PRICE - 1
@@ -315,7 +316,7 @@ contract PositionManagerTest is FlaunchTest {
         // ETH is specified, TOKEN is unspecified
         (amount0, amount1) = positionManager.captureDelta(
             flippedPoolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: false,
                 amountSpecified: -1 ether,
                 sqrtPriceLimitX96: TickMath.MAX_SQRT_PRICE - 1
@@ -328,7 +329,7 @@ contract PositionManagerTest is FlaunchTest {
 
         (amount0, amount1) = positionManager.captureDeltaSwapFee(
             flippedPoolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: false,
                 amountSpecified: -1 ether,
                 sqrtPriceLimitX96: TickMath.MAX_SQRT_PRICE - 1
@@ -343,7 +344,7 @@ contract PositionManagerTest is FlaunchTest {
         // TOKEN is specified, ETH is unspecified
         (amount0, amount1) = positionManager.captureDelta(
             flippedPoolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: false,
                 amountSpecified: 1 ether,
                 sqrtPriceLimitX96: TickMath.MAX_SQRT_PRICE - 1
@@ -358,7 +359,7 @@ contract PositionManagerTest is FlaunchTest {
         // TOKEN is specified, ETH is unspecified
         (amount0, amount1) = positionManager.captureDelta(
             flippedPoolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -1 ether,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
@@ -373,7 +374,7 @@ contract PositionManagerTest is FlaunchTest {
         // ETH is specified, TOKEN is unspecified
         (amount0, amount1) = positionManager.captureDelta(
             flippedPoolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: 1 ether,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
@@ -552,7 +553,7 @@ contract PositionManagerTest is FlaunchTest {
 
         poolSwap.swap(
             poolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -20 ether,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1

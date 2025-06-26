@@ -7,6 +7,7 @@ import {Currency} from '@uniswap/v4-core/src/types/Currency.sol';
 import {CustomRevert} from '@uniswap/v4-core/src/libraries/CustomRevert.sol';
 import {Hooks, IHooks} from '@uniswap/v4-core/src/libraries/Hooks.sol';
 import {IPoolManager} from '@uniswap/v4-core/src/interfaces/IPoolManager.sol';
+import {SwapParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
 import {PoolIdLibrary, PoolId} from '@uniswap/v4-core/src/types/PoolId.sol';
 import {TickMath} from '@uniswap/v4-core/src/libraries/TickMath.sol';
@@ -150,7 +151,7 @@ contract FairLaunchTest is FlaunchTest {
         // Action our swap during Fair Launch
         poolSwap.swap(
             actualPoolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: !_flipped,
                 amountSpecified: -int(_flETHBuy),
                 sqrtPriceLimitX96: !_flipped ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
@@ -168,7 +169,7 @@ contract FairLaunchTest is FlaunchTest {
         // Action our swap after Fair Launch for rebalancing
         poolSwap.swap(
             actualPoolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: !_flipped,
                 amountSpecified: -1 ether,
                 sqrtPriceLimitX96: !_flipped ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
@@ -243,7 +244,7 @@ contract FairLaunchTest is FlaunchTest {
         // Action our swap to buy token from the pool
         poolSwap.swap(
             actualPoolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: !_flipped,
                 amountSpecified: _specified ? int(1 ether) : -1 ether,
                 sqrtPriceLimitX96: !_flipped ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
@@ -317,7 +318,7 @@ contract FairLaunchTest is FlaunchTest {
         // Action our swap to buy token from the pool
         poolSwap.swap(
             actualPoolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: !_flipped,
                 amountSpecified: -1 ether,
                 sqrtPriceLimitX96: !_flipped ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
@@ -341,7 +342,7 @@ contract FairLaunchTest is FlaunchTest {
 
         poolSwap.swap(
             actualPoolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: _flipped,
                 amountSpecified: sellAmountSpecified,
                 sqrtPriceLimitX96: _flipped ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
@@ -354,7 +355,7 @@ contract FairLaunchTest is FlaunchTest {
 
         poolSwap.swap(
             actualPoolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: _flipped,
                 amountSpecified: sellAmountSpecified,
                 sqrtPriceLimitX96: _flipped ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
@@ -388,7 +389,7 @@ contract FairLaunchTest is FlaunchTest {
         // Perfect a swap with ETH as the unspecified token
         poolSwap.swap(
             actualPoolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: !_flipped,
                 amountSpecified: 0.5 ether,
                 sqrtPriceLimitX96: !_flipped ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
@@ -398,7 +399,7 @@ contract FairLaunchTest is FlaunchTest {
         // Perfect a swap with non-ETH as the unspecified token
         poolSwap.swap(
             actualPoolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: !_flipped,
                 amountSpecified: -0.5 ether,
                 sqrtPriceLimitX96: !_flipped ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
@@ -415,7 +416,7 @@ contract FairLaunchTest is FlaunchTest {
             // Action a swap that will rebalance
             poolSwap.swap(
                 actualPoolKey,
-                IPoolManager.SwapParams({
+                SwapParams({
                     zeroForOne: !_flipped,
                     amountSpecified: -0.1 ether,
                     sqrtPriceLimitX96: !_flipped ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
@@ -465,7 +466,7 @@ contract FairLaunchTest is FlaunchTest {
 
             poolSwap.swap(
                 actualPoolKey,
-                IPoolManager.SwapParams({
+                SwapParams({
                     zeroForOne: !_flipped,
                     amountSpecified: int(tokenBuyAmount),
                     sqrtPriceLimitX96: !_flipped ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
@@ -525,7 +526,7 @@ contract FairLaunchTest is FlaunchTest {
         // Action our swap to buy tokens from the pool (test that large swaps don't overflow)
         poolSwap.swap(
             actualPoolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: !_flipped,
                 amountSpecified: -1000 ether,
                 sqrtPriceLimitX96: !_flipped ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
@@ -538,7 +539,7 @@ contract FairLaunchTest is FlaunchTest {
         // Confirm that we can make another swap
         poolSwap.swap(
             actualPoolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: !_flipped,
                 amountSpecified: -1 ether,
                 sqrtPriceLimitX96: !_flipped ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
@@ -582,7 +583,7 @@ contract FairLaunchTest is FlaunchTest {
         // Action our swap to buy all of the FairLaunch tokens from the pool
         poolSwap.swap(
             poolKey(false),
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -1000e18,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
@@ -639,7 +640,7 @@ contract FairLaunchTest is FlaunchTest {
         vm.expectRevert();
         poolSwap.swap(
             actualPoolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -0.1e18,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
@@ -655,7 +656,7 @@ contract FairLaunchTest is FlaunchTest {
         vm.expectRevert();
         poolSwap.swap(
             actualPoolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -0.1e18,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
@@ -669,7 +670,7 @@ contract FairLaunchTest is FlaunchTest {
 
         poolSwap.swap(
             actualPoolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -0.1e18,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
@@ -683,7 +684,7 @@ contract FairLaunchTest is FlaunchTest {
 
         poolSwap.swap(
             actualPoolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -0.1e18,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
@@ -697,7 +698,7 @@ contract FairLaunchTest is FlaunchTest {
 
         poolSwap.swap(
             actualPoolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -0.1e18,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
@@ -743,7 +744,7 @@ contract FairLaunchTest is FlaunchTest {
         // Action our swap during Fair Launch
         poolSwap.swap(
             poolKey(false),
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -int(1 ether),
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1

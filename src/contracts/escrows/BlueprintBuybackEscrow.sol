@@ -21,6 +21,7 @@ import {IPoolManager} from '@uniswap/v4-core/src/interfaces/IPoolManager.sol';
 import {PoolId, PoolIdLibrary} from '@uniswap/v4-core/src/types/PoolId.sol';
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
 import {BalanceDelta} from '@uniswap/v4-core/src/types/BalanceDelta.sol';
+import {SwapParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 
 /**
  * BlueprintBuybackEscrow - Simplified upgradeable contract for fee collection and manual buybacks
@@ -320,7 +321,7 @@ contract BlueprintBuybackEscrow is
             revert InvalidPool();
         }
         
-        IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
+        SwapParams memory params = SwapParams({
             zeroForOne: zeroForOne,
             amountSpecified: int256(_amount),
             sqrtPriceLimitX96: 0

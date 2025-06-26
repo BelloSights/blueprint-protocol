@@ -71,3 +71,6 @@ docs/
 
 # OS Files
 .DS_Store
+
+# bak files
+*.sol.bak

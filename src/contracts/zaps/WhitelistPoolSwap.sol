@@ -5,6 +5,7 @@ import {MerkleProofLib} from '@solady/utils/MerkleProofLib.sol';
 
 import {BalanceDelta} from '@uniswap/v4-core/src/types/BalanceDelta.sol';
 import {IPoolManager} from '@uniswap/v4-core/src/interfaces/IPoolManager.sol';
+import {SwapParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 import {PoolId, PoolIdLibrary} from '@uniswap/v4-core/src/types/PoolId.sol';
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
 
@@ -48,7 +49,7 @@ contract WhitelistPoolSwap is PoolSwap {
      */
     function swap(
         PoolKey memory _key,
-        IPoolManager.SwapParams memory _params,
+        SwapParams memory _params,
         bytes32[] memory _merkleProof
     ) public payable virtual returns (BalanceDelta) {
         return swap(_key, _params, _merkleProof, address(0));
@@ -66,7 +67,7 @@ contract WhitelistPoolSwap is PoolSwap {
      */
     function swap(
         PoolKey memory _key,
-        IPoolManager.SwapParams memory _params,
+        SwapParams memory _params,
         bytes32[] memory _merkleProof,
         address _referrer
     ) public payable virtual returns (BalanceDelta delta_) {
@@ -99,11 +100,11 @@ contract WhitelistPoolSwap is PoolSwap {
     /**
      * Routes the existing swap logic that is inherited through the merkle approach.
      */
-    function swap(PoolKey memory _key, IPoolManager.SwapParams memory _params) public payable override returns (BalanceDelta) {
+    function swap(PoolKey memory _key, SwapParams memory _params) public payable override returns (BalanceDelta) {
         return swap(_key, _params, new bytes32[](0), address(0));
     }
 
-    function swap(PoolKey memory _key, IPoolManager.SwapParams memory _params, address _referrer) public payable override returns (BalanceDelta) {
+    function swap(PoolKey memory _key, SwapParams memory _params, address _referrer) public payable override returns (BalanceDelta) {
         return swap(_key, _params, new bytes32[](0), _referrer);
     }
 

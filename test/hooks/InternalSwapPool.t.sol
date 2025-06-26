@@ -7,6 +7,7 @@ import {BalanceDelta, toBalanceDelta} from '@uniswap/v4-core/src/types/BalanceDe
 import {Currency} from '@uniswap/v4-core/src/types/Currency.sol';
 import {Hooks, IHooks} from '@uniswap/v4-core/src/libraries/Hooks.sol';
 import {IPoolManager, PoolManager, Pool} from '@uniswap/v4-core/src/PoolManager.sol';
+import {SwapParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 import {LPFeeLibrary} from '@uniswap/v4-core/src/libraries/LPFeeLibrary.sol';
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
 import {PoolIdLibrary, PoolId} from '@uniswap/v4-core/src/types/PoolId.sol';
@@ -148,7 +149,7 @@ contract InternalSwapPoolTest is FlaunchTest {
         // Make a swap that requests 3 tokens, paying any amount of ETH to get those tokens
         poolSwap.swap(
             _poolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: !_flipped,
                 amountSpecified: 3 ether,
                 sqrtPriceLimitX96: !_flipped ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
@@ -225,7 +226,7 @@ contract InternalSwapPoolTest is FlaunchTest {
 
         poolSwap.swap(
             _poolKey,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: !_flipped,
                 amountSpecified: -5 ether,
                 sqrtPriceLimitX96: !_flipped ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1

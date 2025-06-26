@@ -6,6 +6,7 @@ import {AccessControl} from '@openzeppelin/contracts/access/AccessControl.sol';
 import {BeforeSwapDelta, toBeforeSwapDelta} from '@uniswap/v4-core/src/types/BeforeSwapDelta.sol';
 import {BalanceDelta, toBalanceDelta} from '@uniswap/v4-core/src/types/BalanceDelta.sol';
 import {Currency} from '@uniswap/v4-core/src/types/Currency.sol';
+import {ModifyLiquidityParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 import {FullMath} from '@uniswap/v4-core/src/libraries/FullMath.sol';
 import {IPoolManager} from '@uniswap/v4-core/src/interfaces/IPoolManager.sol';
 import {LiquidityAmounts} from '@uniswap/v4-core/test/utils/LiquidityAmounts.sol';
@@ -343,7 +344,7 @@ contract FairLaunch is AccessControl {
         // Create our single-sided position
         (BalanceDelta delta,) = poolManager.modifyLiquidity({
             key: _poolKey,
-            params: IPoolManager.ModifyLiquidityParams({
+            params: ModifyLiquidityParams({
                 tickLower: _tickLower,
                 tickUpper: _tickUpper,
                 liquidityDelta: liquidityDelta.toInt128(),

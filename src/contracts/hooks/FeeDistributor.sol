@@ -7,6 +7,7 @@ import {Currency} from '@uniswap/v4-core/src/types/Currency.sol';
 import {IPoolManager} from '@uniswap/v4-core/src/interfaces/IPoolManager.sol';
 import {PoolId, PoolIdLibrary} from '@uniswap/v4-core/src/types/PoolId.sol';
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
+import {SwapParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
 
 import {FeeExemptions} from '@flaunch/hooks/FeeExemptions.sol';
 import {MemecoinFinder} from '@flaunch/types/MemecoinFinder.sol';
@@ -171,7 +172,7 @@ abstract contract FeeDistributor is Ownable {
     function _captureSwapFees(
         IPoolManager _poolManager,
         PoolKey calldata _key,
-        IPoolManager.SwapParams memory _params,
+        SwapParams memory _params,
         IFeeCalculator _feeCalculator,
         Currency _swapFeeCurrency,
         uint _swapAmount,
