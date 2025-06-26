@@ -1,56 +1,141 @@
-# ƒlaunch Protocol - README
+<p align="center">
+  <br>
+  <a href="https://bp.fun" target="_blank">
+    <img width="300" height="100" src="./assets/blueprint.png" alt="Blueprint Logo">
+  </a>
+  <br><br>
+</p>
+
+[![Twitter](https://img.shields.io/twitter/follow/bpdotfun?color=blue&style=flat-square)](https://twitter.com/bpdotfun)
+[![LICENSE](https://img.shields.io/badge/license-Apache--2.0-blue?logo=apache)](./LICENSE)
+
+# Blueprint Protocol Contracts
+
+This repository contains smart contracts that power the Blueprint Protocol ecosystem. The protocol enables automated creator coin launches paired with BP network token, featuring dynamic fee distribution, automated buyback mechanisms, and reward pools for sustainable creator economies. The contracts include:
+
+- **Blueprint Protocol Factory** – Core contract for creator coin launches and pool management
+- **Blueprint Protocol Hook** – Uniswap V4 hook for dynamic fee management and cross-pool swapping
+- **Buyback Escrow** – Automated buyback mechanisms for market stabilization
+- **Reward Pool** – Incentive distribution system for swap participants
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Smart Contract Details](#smart-contract-details)
+  - [Core Contracts](#core-contracts)
+  - [Fee Management](#fee-management)
+  - [Liquidity & Trading](#liquidity--trading)
+- [Protocol Architecture](#protocol-architecture)
+- [Contract Addresses](#contract-addresses)
+- [Setup and Installation](#setup-and-installation)
+- [Deployment](#deployment)
+- [Testing](#testing)
+- [SDK](#sdk)
+- [Future Plans](#future-plans)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
+
+---
+
 ## Overview
-The ƒlaunch protocol is an innovative platform designed to revolutionize the way memecoins are launched and traded. With a focus on creating sustainable "meme economies," the ƒlaunch protocol introduces features that ensure a fair, transparent, and risk-free launch environment for all participants, from developers to traders. By integrating mechanisms like Progressive Bid Walls and decentralized revenue-sharing models, ƒlaunch aligns the incentives of all stakeholders towards long-term success rather than short-term gains.
 
-## Key Features
-1. **Buyback and Bid Wall**:
-   - Trading fees are allocated towards buybacks through Progressive Bid Walls, which start just below the current spot price and adjust upward as the price increases. This mechanism helps stabilize the coin's value and ensures continuous market activity.
+Blueprint Protocol's smart contract suite enables automated creator coin launches with sophisticated liquidity management and fee distribution. Built on Uniswap V4, the protocol features hook-based architecture that automatically manages fees, liquidity, and trading mechanics across creator coin ecosystems.
 
-2. **Meme Economies**:
-   - Coin holders have the power to halt Progressive Bid Walls and instead accumulate revenue in a treasury. This treasury can be utilized in ways determined by the token holders, fostering a community-driven economy.
+**Key Features:**
+- **Creator Coin Launches** – Automated launches paired with BP network token
+- **Dynamic Fee Management** – 1% flat fee across all Blueprint Protocol pools
+- **Automated Fee Distribution** – 60% rewards, 20% creator, 10% buyback, 10% treasury
+- **Cross-Pool Swapping** – ETH ↔ BP ↔ Creator coin routing with optimal paths
+- **Buyback Mechanisms** – Automated market stabilization and growth promotion
 
-3. **Devs Get Revs**:
-   - Developers, known as "flaunchers," receive a percentage of all trading fees. This aligns their incentives with the long-term health of the memecoin, encouraging them to focus on sustainable growth rather than quick pumps and dumps. Dev Revs are always converted to our ETH equivalent token (flETH) using our Internal Swap Pool. This means no negative token dumps to get fees.
+---
 
-4. **Risk-Free Fair Launch**:
-   - During the initial fair launch period, all ETH proceeds are funneled back into a Progressive Bid Wall. This allows early buyers to exit at their entry price (minus the AMM fee), ensuring that no party has an unfair advantage, and guaranteeing a fair launch for all participants.
+## Smart Contract Details
 
-## Why ƒlaunch?
-Memecoin launchpads have traditionally been extractive, often benefitting Key Opinion Leaders (KOLs), MEV operators, and even validators at the expense of the broader community. The ƒlaunch protocol seeks to disrupt this model by creating an environment where launching a coin is not only fun and fair but also gives users a better chance of profit. By enabling the formation of true "meme economies" and rewarding developers through revenue sharing, ƒlaunch offers a fresh, degen-centric approach to memecoin launches.
+### Core Contracts
 
-## Getting Started
-To start using the ƒlaunch protocol, please refer to our [documentation](https://docs.flaunch.gg/flaunch-docs) which provides detailed instructions on setting up, launching, and managing your memecoin within the ƒlaunch ecosystem.
+#### Blueprint Protocol Factory
+- **Purpose:**  
+  Core contract for creator coin launches and pool management, handling deployment of buyback escrows and reward pools.
+- **Key Features:**
+  - Creator coin launch management paired with BP token
+  - Buyback escrow deployment and configuration
+  - Reward pool creation and management
+  - Integration with Blueprint Protocol Hook for fee routing
+- **File:** [BlueprintFactory.sol](./src/contracts/BlueprintFactory.sol)
 
-For further assistance, feel free to reach out to our team through our official communication channels.
+#### Blueprint Protocol Hook
+- **Purpose:**  
+  Uniswap V4 hook that handles dynamic fee management, cross-pool swapping, and fee distribution across creator coin ecosystems.
+- **Key Features:**
+  - Dynamic fee enforcement (1% flat fee across all pools)
+  - ETH ↔ BP ↔ Creator coin swap routing
+  - Cross-pool swap optimization
+  - Automated fee distribution to rewards, creators, buyback, and treasury
+- **File:** [BlueprintProtocolHook.sol](./src/contracts/hooks/BlueprintProtocolHook.sol)
 
-## Contracts
-### Flaunch Addresses
-| Contract              | Base                                         | Base Sepolia                                 |
-|-----------------------|----------------------------------------------|----------------------------------------------|
-| FeeExemptions         | `0xfdCE459071c74b732B2dEC579Afb38Ea552C4e06` | `0xD0aa3724074727629A9794d8A06CA1B2aDb51a85` |
-| MarketCappedPrice     | `0x6575A6aF0EEACe121fD60B99d491B24357E8528B` | `0x10ea1368c41FB09296dF0bd127Ae307a56e7A16d` |
-| PositionManager       | `0x51Bba15255406Cfe7099a42183302640ba7dAFDC` | `0x9A7059cA00dA92843906Cb4bCa1D005cE848AFdC` |
-| BidWall               | `0x66681f10BA90496241A25e33380004f30Dfd8aa8` | `0xa2107050ACEf4809c88Ab744F8e667605db5ACDB` |
-| FairLaunch            | `0xCc7A4A00072ccbeEEbd999edc812C0ce498Fb63B` | `0x227Fc288aC56E169f2BfEA82e07F8635054d4136` |
-| TreasuryActionManager | `0xeC2a53F572cFD952aAA3a8359Ac54B31d0A186a4` | `0xe1cfA7B6B47A31448E27DB6d2EE98D671d852275` |
-| Notifier              | `0x75a8264b748147fdbfAE518CF37Fd3A83FC03aB7` | `0xCc4B78FBACFD16b0beFd742b163185f9671d01A6` |
-| Memecoin              | `0xF1EEeeeeECd95E9Eb2df58484ceed175AcBD945C` | `0x08D9f2512da858fB9DbEaFb62EE9F5F5a3519367` |
-| MemecoinTreasury      | `0xa327725c2DcD8077dBC49701dD7A673fFB768145` | `0x83D948aaC357EbfE0a17efE92bbE8A133C0BaE6C` |
-| Flaunch               | `0x6A53F8b799bE11a2A3264eF0bfF183dCB12d9571` | `0x7D375C9133721083DF7b7e5Cb0Ed8Fc78862dfe3` |
-| StaticFeeCalculator   | `0xaA27191eB96F8C9F1f50519C53e6512228f2faB9` | `0x8FCedC6bf6bd2691CA9efd9E41Ff01ef325585e0` |
-| BuyBackAction         | `0xDa4866c97E3414b920663041C680012D6Ee296bE` | `0xb480B22fE3a802526c2C2533535ddB8DA6694Aec` |
-| BurnTokensAction      | `0x8696a1F26e678D15c251f07556696b877D3382c8` | `0xe8c3A9428aA97A8Cef5DF45af7d6Af7d553dd92c` |
-| FlaunchPremineZap     | `0xeFA8267954b0740dC981a40D8E23d07116c8DfFE` | `0xb84d6cc0cC54A1a30dF07e4B869Cc4AFa7405281` |
-| ReferralEscrow        | `0xBD39c7Be6D98BD1a3e4Ad482baF99d738947fE55` | `0x0651cadC51b6a13CB3465C134A22154a2b633779` |
-| PoolSwap              | `0x4c211268cbf275637A8C235E63A26BC0E05ACA25` | `0xB8ed7Dcc436F646999C5A2C8546b9b0ED51CcD01` |
+#### Buyback Escrow
+- **Purpose:**  
+  Manages automated buyback mechanisms for market stabilization and growth promotion.
+- **Key Features:**
+  - Automated buyback execution
+  - Market stabilization mechanisms
+  - Integration with fee distribution system (receives 10% of total fees)
+- **File:** [BuybackEscrow.sol](./src/contracts/escrows/BuybackEscrow.sol)
 
-### flETH Addresses
-| Contract              | Base                                         | Base Sepolia                                 |
-|-----------------------|----------------------------------------------|----------------------------------------------|
-| flETH                 | `0x000000000d564d5be76f7f0d28fe52605afc7cf8` | `0x79FC52701cD4BE6f9Ba9aDC94c207DE37e3314eb` |
-| FlAaveV3WethGateway   | `0x344e4d19c851b317bb65d31bb5c4e3815b53d727` | `0xed5fEec571D132AeA6D6a636c683b818b3442888` |
-| AaveV3Strategy        | `0xd93855bab40a80df2f8ccaae079f2b73d5ec8527` | `0xd5f7Fe1954C5c772Dd562CbcF1e26a6D75Bc0351` |
-| flETHHooks            | `0x9e433f32bb5481a9ca7dff5b3af74a7ed041a888` | `0x009941e51253244349c6034761382b01f06dBA99` |
+#### Reward Pool
+- **Purpose:**  
+  Incentive distribution system for swap participants and ecosystem growth.
+- **Key Features:**
+  - Swap participant reward distribution
+  - Incentive mechanism for trading activity
+  - Receives 60% of total trading fees for distribution
+- **File:** [RewardPool.sol](./src/contracts/rewards/RewardPool.sol)
+
+### Fee Management
+
+The protocol implements a flat 1% fee structure with dynamic enforcement:
+
+- **1% Total Fee** distributed as:
+  - **60% to Reward Pool** – Incentivizes swap participation
+  - **20% to Creator** – Promotes creator journey and engagement
+  - **10% to Buyback Escrow** – Stabilizes and promotes Blueprint Protocol growth
+  - **10% to Treasury** – Funds future protocol development
+
+### Liquidity & Trading
+
+- **Cross-Pool Routing** – Optimal swap paths: ETH ↔ BP ↔ Creator coins
+- **Dynamic Fee Enforcement** – Consistent 1% fee across all Blueprint Protocol pools
+- **Automated Buybacks** – Market stabilization through escrow mechanisms
+- **Reward Distribution** – Participant incentives for trading activity
+
+---
+
+## Protocol Architecture
+
+```
+Creator Coin Launch Flow:
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   BP Factory    │───▶│  Creator Pool    │───▶│  Buyback Escrow │
+│                 │    │  (BP + Creator)  │    │                 │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Reward Pool   │    │ Blueprint Hook   │    │ Fee Distribution│
+│                 │    │  (1% Dynamic)    │    │  (60/20/10/10)  │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+
+Swap Routes:
+ETH ──────▶ BP ──────▶ Creator Coin A
+ │                           │
+ └─────▶ Creator Coin B ◀────┘
+         (via BP routing)
+```
+
+---
 
 ### Uniswap V4 Addresses
 | Contract              | Base                                         | Base Sepolia                                 |
@@ -63,23 +148,201 @@ For further assistance, feel free to reach out to our team through our official 
 | StateView             | `0xA3c0c9b65baD0b08107Aa264b0f3dB444b867A71` | `0x571291b572ed32ce6751a2Cb2486EbEe8DEfB9B4` |
 | UniversalRouter       | `0x6fF5693b99212Da76ad316178A184AB56D299b43` | `0x492E6456D9528771018DeB9E87ef7750EF184104` |
 
-## Project Setup
-We use [Foundry](https://book.getfoundry.sh/) for tests and deployment. Refer to installation instructions for foundry [here](https://github.com/foundry-rs/foundry#installation).
+---
 
-```sh
-git clone https://github.com/flayerlabs/flaunchgg-contracts.git
+## Setup and Installation
+
+Ensure you have [Foundry](https://book.getfoundry.sh) installed and updated:
+
+```bash
+foundryup
+```
+
+Clone the repository and install dependencies:
+
+```bash
+git clone https://github.com/BelloSights/flaunchgg-contracts.git
 cd flaunchgg-contracts
 forge install
 ```
 
-Copy `.env.sample` into `.env` and fill out the env variables.
+Copy `.env.sample` to `.env` and configure your environment variables:
 
-### Tests
+```bash
+cp .env.sample .env
+# Edit .env with your configuration
+```
 
-```sh
-forge test
+Build the contracts:
+
+```bash
+make build
 ```
 
 ---
 
-This README serves as a high-level introduction to the ƒlaunch protocol. For more technical details, refer to the linked documentation and resources.
+## Deployment
+
+The contracts can be deployed using Forge scripts with the Makefile commands.
+
+### Deploy Blueprint Protocol
+
+```bash
+make deploy_blueprint_protocol ARGS="--network base_sepolia"
+```
+
+### Deploy Hook System
+
+```bash
+make deploy_hook_system ARGS="--network base_sepolia"
+```
+
+### Deploy Position Manager
+
+```bash
+make deploy_position_manager ARGS="--network base_sepolia"
+```
+
+### Verification
+
+For Blueprint Protocol implementation contracts:
+
+```bash
+make verify_blueprint_implementation_base_sepolia
+```
+
+For hook implementation contracts:
+
+```bash
+make verify_hook_implementation_base_sepolia
+```
+
+For custom contract verification:
+
+```bash
+make verify_base_sepolia ADDRESS=0x... CONTRACT=src/contracts/AnyFlaunch.sol:AnyFlaunch
+```
+
+### Local Development
+
+For local development with Anvil:
+
+```bash
+anvil
+```
+
+In a new terminal, run:
+
+```bash
+forge script script/Anvil.s.sol --rpc-url http://localhost:8545 --private-key <ANVIL_PRIVATE_KEY> --broadcast --via-ir
+```
+
+---
+
+## Testing
+
+Run the complete test suite:
+
+```bash
+make test
+```
+
+Run specific test categories:
+
+```bash
+# Test Blueprint Protocol hooks
+make test_blueprint_protocol_hook
+
+# Test all hooks
+make test_all_hooks
+
+# Test position manager
+make test_any_position_manager
+
+# Run comprehensive tests
+make test_comprehensive
+```
+
+Or directly with Forge:
+
+```bash
+forge test
+```
+
+For verbose output:
+
+```bash
+forge test -vvv
+```
+
+---
+
+## SDK
+
+The Blueprint Protocol SDK provides TypeScript bindings for seamless integration. 
+
+To generate SDK ABIs:
+
+```bash
+jq '.abi' out/BlueprintProtocolHook.sol/BlueprintProtocolHook.json > ../flaunch-sdk/src/abi/BlueprintProtocolHook.ts
+jq '.abi' out/BlueprintFactory.sol/BlueprintFactory.json > ../flaunch-sdk/src/abi/BlueprintFactory.ts
+jq '.abi' out/BuybackEscrow.sol/BuybackEscrow.json > ../flaunch-sdk/src/abi/BuybackEscrow.ts
+jq '.abi' out/RewardPool.sol/RewardPool.json > ../flaunch-sdk/src/abi/RewardPool.ts
+```
+
+For more information, see the [Blueprint Protocol SDK](../flaunch-sdk/README.md).
+
+---
+
+## Future Plans
+
+The Blueprint Protocol is continuously evolving to support new features and improvements:
+
+### 1. **Enhanced Cross-Pool Swapping**
+- **Creator-to-Creator Swaps** – Direct CREATOR A → BP → CREATOR B routing with optimal swap paths
+- **Multi-Hop Optimization** – Advanced routing algorithms for minimal slippage and fees
+
+### 2. **Flaunch Protocol Integration**
+- **Unified Launch Platform** – Integration with existing Flaunch Protocol infrastructure
+- **Legacy Support** – Backward compatibility with existing Flaunch tokens and mechanisms
+
+### 3. **Decentralized Buyback Infrastructure**
+- **EigenLayer Integration** – Leverage EigenLayer to reward users who help stabilize creator coin markets
+- **Efficient Buyback Mechanisms** – Decentralized buyback execution for improved low market cap efficiency
+- **Community-Driven Stabilization** – Incentivize community participation in market stabilization
+
+### 4. **JIT Liquidity Mechanisms**
+- **Dynamic Liquidity Provision** – Just-in-time liquidity to reduce slippage on creator coin swaps
+- **Enhanced Buyback Hooks** – Additional liquidity provision during high-slippage scenarios
+- **Improved Swap Efficiency** – Higher earnings per swap through optimized liquidity deployment
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+- **Foundry Installation Issues:**  
+  If you encounter "Permission Denied" errors during `forge install`, ensure your GitHub SSH keys are correctly added. Refer to [GitHub SSH documentation](https://docs.github.com/en/authentication/connecting-to-github-with-ssh).
+
+- **Hook Function Compilation Errors:**  
+  Ensure you're using the correct BaseHook pattern with internal `_beforeSwap`/`_afterSwap` functions. The Blueprint Protocol uses the updated Uniswap V4 hook architecture.
+
+- **Test Failures:**  
+  If tests fail due to price limit issues, verify that you're using the correct price limit constants from the inherited Deployers contract.
+
+- **Deployment Failures:**  
+  Ensure that the correct flags and salt values are used (especially for CREATE2 deployments) and verify that your deployer address matches the expected CREATE2 proxy address if applicable.
+
+### Getting Help
+
+For additional support:
+- Review the [Blueprint Protocol Documentation](https://docs.blueprint.gg/)
+- Check the [GitHub Issues](https://github.com/BelloSights/flaunchgg-contracts/issues)
+- Join our [Discord Community](https://discord.gg/blueprint)
+
+---
+
+## License
+
+This repository is released under the [Apache 2.0 License](./LICENSE). Some files (such as tests and scripts) may be licensed under MIT.
