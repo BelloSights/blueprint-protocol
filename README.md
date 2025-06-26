@@ -46,7 +46,7 @@ Blueprint Protocol's smart contract suite enables automated creator coin launche
 **Key Features:**
 - **Creator Coin Launches** – Automated launches paired with BP network token
 - **Dynamic Fee Management** – 1% flat fee across all Blueprint Protocol pools
-- **Automated Fee Distribution** – 60% rewards, 20% creator, 10% buyback, 10% treasury
+- **Automated Fee Distribution** – 0.60% rewards, 0.20% creator, 0.10% buyback, 0.10% treasury
 - **Cross-Pool Swapping** – ETH ↔ BP ↔ Creator coin routing with optimal paths
 - **Buyback Mechanisms** – Automated market stabilization and growth promotion
 

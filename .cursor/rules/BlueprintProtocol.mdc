@@ -24,10 +24,10 @@ graph TB
         end
         
         subgraph "Fee Distribution"
-            RewardDist["60% → Reward Pool"]
-            CreatorDist["20% → Creator"]
-            BuybackDist["10% → Buyback Escrow"] 
-            TreasuryDist["10% → Treasury"]
+            RewardDist["0.10% → Reward Pool"]
+            CreatorDist["0.20% → Creator"]
+            BuybackDist["0.60% → Buyback Escrow"] 
+            TreasuryDist["0.10% → Treasury"]
         end
     end
     

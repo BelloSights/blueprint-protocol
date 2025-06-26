@@ -7,7 +7,7 @@ endif
 # Load environment variables
 -include $(ENV_FILE)
 
-.PHONY: install build test coverage test_blueprint_protocol_hook test_all_hooks test_blueprint_all deploy help
+.PHONY: install build test coverage test_blueprint_protocol_hook test_all_hooks test_blueprint_all deploy help network-info
 
 DEFAULT_ANVIL_PRIVATE_KEY := 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 
@@ -21,6 +21,16 @@ endif
 # Base Sepolia
 ifeq ($(findstring --network base_sepolia,$(ARGS)),--network base_sepolia)
 	NETWORK_ARGS := --rpc-url $(BASE_SEPOLIA_RPC) --private-key $(PRIVATE_KEY) --broadcast -vvvv
+endif
+
+# Ink Mainnet
+ifeq ($(findstring --network ink,$(ARGS)),--network ink)
+	NETWORK_ARGS := --rpc-url $(INK_MAINNET_RPC) --private-key $(PRIVATE_KEY) --broadcast -vvvv
+endif
+
+# Ink Sepolia Testnet
+ifeq ($(findstring --network ink_sepolia,$(ARGS)),--network ink_sepolia)
+	NETWORK_ARGS := --rpc-url $(INK_SEPOLIA_RPC) --private-key $(PRIVATE_KEY) --broadcast -vvvv
 endif
 
 # Local network
@@ -64,6 +74,30 @@ deploy:
 	@echo "Deploying Blueprint Protocol..."
 	@source $(ENV_FILE) && forge script script/DeployBlueprintProtocol.s.sol:DeployBlueprintProtocol $(NETWORK_ARGS) --ffi --via-ir
 
+# Network information
+network-info:
+	@echo "Available Networks:"
+	@echo "=================="
+	@echo ""
+	@echo "LOCAL DEVELOPMENT:"
+	@echo "  --network local              - Local development (localhost:8545)"
+	@echo ""
+	@echo "BASE NETWORKS:"
+	@echo "  --network base               - Base Mainnet (Chain ID: 8453)"
+	@echo "  --network base_sepolia       - Base Sepolia Testnet (Chain ID: 84532)"
+	@echo ""
+	@echo "INK NETWORKS:"
+	@echo "  --network ink                - Ink Mainnet (Chain ID: 57073)"
+	@echo "  --network ink_sepolia        - Ink Sepolia Testnet (Chain ID: 763373)"
+	@echo ""
+	@echo "Required Environment Variables:"
+	@echo "  INK_MAINNET_RPC=https://rpc-gel.inkonchain.com"
+	@echo "  INK_SEPOLIA_RPC=https://rpc-gel-sepolia.inkonchain.com"
+	@echo ""
+	@echo "Block Explorers:"
+	@echo "  Ink Mainnet: https://explorer.inkonchain.com"
+	@echo "  Ink Sepolia: https://explorer-sepolia.inkonchain.com"
+
 # Help
 help:
 	@echo "Blueprint Protocol Project - Available Commands"
@@ -81,13 +115,19 @@ help:
 	@echo ""
 	@echo "DEPLOYMENT:"
 	@echo "  make deploy                      - Deploy Blueprint Protocol"
+	@echo "  make network-info                - Show available networks and configuration"
 	@echo ""
 	@echo "NETWORK FLAGS:"
 	@echo "  --network local                  - Local development network"
 	@echo "  --network base_sepolia           - Base Sepolia testnet"
 	@echo "  --network base                   - Base mainnet"
+	@echo "  --network ink_sepolia            - Ink Sepolia testnet"
+	@echo "  --network ink                    - Ink mainnet"
 	@echo ""
 	@echo "EXAMPLES:"
 	@echo "  make test_blueprint_protocol_hook"
 	@echo "  make test_all_hooks"
 	@echo "  make deploy --network base_sepolia"
+	@echo "  make deploy --network ink_sepolia"
+	@echo "  make deploy --network ink"
+	@echo "  make network-info"
