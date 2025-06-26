@@ -33,6 +33,16 @@ ifeq ($(findstring --network ink_sepolia,$(ARGS)),--network ink_sepolia)
 	NETWORK_ARGS := --rpc-url $(INK_SEPOLIA_RPC) --private-key $(PRIVATE_KEY) --broadcast -vvvv
 endif
 
+# Unichain Mainnet
+ifeq ($(findstring --network unichain,$(ARGS)),--network unichain)
+	NETWORK_ARGS := --rpc-url $(UNICHAIN_MAINNET_RPC) --private-key $(PRIVATE_KEY) --broadcast -vvvv
+endif
+
+# Unichain Sepolia Testnet
+ifeq ($(findstring --network unichain_sepolia,$(ARGS)),--network unichain_sepolia)
+	NETWORK_ARGS := --rpc-url $(UNICHAIN_SEPOLIA_RPC) --private-key $(PRIVATE_KEY) --broadcast -vvvv
+endif
+
 # Local network
 ifeq ($(findstring --network local,$(ARGS)),--network local)
 	NETWORK_ARGS := --rpc-url http://localhost:8545 --private-key $(PRIVATE_KEY) --broadcast -vvvv
@@ -90,13 +100,21 @@ network-info:
 	@echo "  --network ink                - Ink Mainnet (Chain ID: 57073)"
 	@echo "  --network ink_sepolia        - Ink Sepolia Testnet (Chain ID: 763373)"
 	@echo ""
+	@echo "UNICHAIN NETWORKS:"
+	@echo "  --network unichain           - Unichain Mainnet (Chain ID: 130)"
+	@echo "  --network unichain_sepolia   - Unichain Sepolia Testnet (Chain ID: 1301)"
+	@echo ""
 	@echo "Required Environment Variables:"
 	@echo "  INK_MAINNET_RPC=https://rpc-gel.inkonchain.com"
 	@echo "  INK_SEPOLIA_RPC=https://rpc-gel-sepolia.inkonchain.com"
+	@echo "  UNICHAIN_MAINNET_RPC=https://mainnet.unichain.org"
+	@echo "  UNICHAIN_SEPOLIA_RPC=https://sepolia.unichain.org"
 	@echo ""
 	@echo "Block Explorers:"
 	@echo "  Ink Mainnet: https://explorer.inkonchain.com"
 	@echo "  Ink Sepolia: https://explorer-sepolia.inkonchain.com"
+	@echo "  Unichain Mainnet: https://uniscan.xyz"
+	@echo "  Unichain Sepolia: https://sepolia.uniscan.xyz"
 
 # Help
 help:
@@ -123,6 +141,8 @@ help:
 	@echo "  --network base                   - Base mainnet"
 	@echo "  --network ink_sepolia            - Ink Sepolia testnet"
 	@echo "  --network ink                    - Ink mainnet"
+	@echo "  --network unichain               - Unichain mainnet"
+	@echo "  --network unichain_sepolia       - Unichain sepolia testnet"
 	@echo ""
 	@echo "EXAMPLES:"
 	@echo "  make test_blueprint_protocol_hook"
@@ -130,4 +150,6 @@ help:
 	@echo "  make deploy --network base_sepolia"
 	@echo "  make deploy --network ink_sepolia"
 	@echo "  make deploy --network ink"
+	@echo "  make deploy --network unichain_sepolia"
+	@echo "  make deploy --network unichain"
 	@echo "  make network-info"
