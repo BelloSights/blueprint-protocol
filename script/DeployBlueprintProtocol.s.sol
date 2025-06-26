@@ -23,11 +23,6 @@ import {HookMiner} from "../test/utils/HookMiner.sol";
  * @dev Deploys factory, hook, implementations and initializes the system
  */
 contract DeployBlueprintProtocol is Script {
-    // Token distribution constants (anti-dump mechanism)
-    uint256 public constant TREASURY_ALLOCATION_BPS = 7500; // 75% to buyback escrow
-    uint256 public constant ADMIN_ALLOCATION_BPS = 2500; // 25% to admin for pool liquidity
-    uint256 public constant MAX_BPS = 10000;
-
     // Deployment configuration
     struct DeploymentConfig {
         address poolManager;

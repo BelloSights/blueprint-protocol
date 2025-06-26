@@ -9,6 +9,9 @@ import {BlueprintRewardPool} from "../../src/contracts/BlueprintRewardPool.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {PoolManager} from "@uniswap/v4-core/src/PoolManager.sol";
 import {IBlueprintProtocol} from "../../src/interfaces/IBlueprintProtocol.sol";
+import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
+import {HookMiner} from "../utils/HookMiner.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 /**
  * @title BasicSecurity
@@ -27,23 +30,58 @@ contract BasicSecurityTest is Test {
     
     function setUp() public {
         poolManager = new PoolManager(admin);
-        factory = new BlueprintFactory();
-        hook = new BlueprintProtocolHook(poolManager);
         
-        vm.startPrank(admin);
-        factory.initialize(
-            poolManager,           // _poolManager
-            address(0),           // _nativeToken (ETH)
-            address(0),           // _memecoinImplementation
-            // Treasury implementation parameter removed - using buyback escrows
-            admin,                // _bpTreasury
-            admin,                // _admin
-            address(hook),        // _blueprintHookImpl
-            address(0),           // _buybackEscrowImpl
-            address(0)            // _rewardPoolImpl
+        // Deploy factory implementation
+        BlueprintFactory factoryImpl = new BlueprintFactory();
+        
+        // Mine hook address with correct flags
+        uint160 flags = uint160(
+            Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG
         );
-        hook.initialize(admin, address(factory));
-        vm.stopPrank();
+        address deployer = admin;
+        
+        (address hookAddress, bytes32 salt) = HookMiner.find(
+            deployer,
+            flags,
+            type(BlueprintProtocolHook).creationCode,
+            abi.encode(address(poolManager))
+        );
+        
+        // Deploy hook at mined address
+        vm.prank(deployer);
+        hook = new BlueprintProtocolHook{salt: salt}(poolManager);
+        require(address(hook) == hookAddress, "Hook address mismatch");
+        
+        // Create mock implementations (factory requires non-zero addresses)
+        address mockBuybackEscrow = makeAddr("mockBuybackEscrow");
+        address mockRewardPool = makeAddr("mockRewardPool");
+        address mockCreatorCoin = makeAddr("mockCreatorCoin");
+        
+        // Create proxy initialization data
+        bytes memory initData = abi.encodeCall(
+            BlueprintFactory.initialize,
+            (
+                poolManager,           // _poolManager
+                admin,                // _admin
+                admin,                // _treasury (using admin for simplicity)
+                address(0),           // _nativeToken (ETH)
+                mockCreatorCoin,      // _creatorcoinImplementation
+                address(hook),        // _blueprintHookImpl
+                mockBuybackEscrow,    // _buybackEscrowImpl
+                mockRewardPool        // _rewardPoolImpl
+            )
+        );
+        
+        // Deploy factory as proxy
+        ERC1967Proxy factoryProxy = new ERC1967Proxy(
+            address(factoryImpl),
+            initData
+        );
+        factory = BlueprintFactory(address(factoryProxy));
+        
+        // Note: Hook initialization skipped for testing
+        // The hook uses _disableInitializers() and would need proxy deployment
+        // for full functionality. For security tests, we only need the factory.
     }
     
     // ===== ACCESS CONTROL TESTS =====

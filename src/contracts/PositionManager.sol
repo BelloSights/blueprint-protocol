@@ -10,6 +10,7 @@ import {BeforeSwapDelta, BeforeSwapDeltaLibrary, toBeforeSwapDelta} from '@unisw
 import {Currency} from '@uniswap/v4-core/src/types/Currency.sol';
 import {Hooks, IHooks} from '@uniswap/v4-core/src/libraries/Hooks.sol';
 import {IPoolManager} from '@uniswap/v4-core/src/interfaces/IPoolManager.sol';
+import {IUnlockCallback} from '@uniswap/v4-core/src/interfaces/callback/IUnlockCallback.sol';
 import {PoolId, PoolIdLibrary} from '@uniswap/v4-core/src/types/PoolId.sol';
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
 import {SwapParams, ModifyLiquidityParams} from '@uniswap/v4-core/src/types/PoolOperation.sol';
@@ -48,7 +49,7 @@ import {IMemecoin} from '@flaunch-interfaces/IMemecoin.sol';
  * functionality and readability. Specific use of each of these contracts has been denoted
  * within comments using square brackets where possible.
  */
-contract PositionManager is BaseHook, FeeDistributor, InternalSwapPool, StoreKeys {
+contract PositionManager is BaseHook, FeeDistributor, InternalSwapPool, StoreKeys, IUnlockCallback {
 
     using BeforeSwapDeltaLibrary for BeforeSwapDelta;
     using CurrencySettler for Currency;
@@ -841,6 +842,17 @@ contract PositionManager is BaseHook, FeeDistributor, InternalSwapPool, StoreKey
 
         // Action our BidWall closure via the {PoolManager} unlock
         poolManager.unlock(abi.encode(_key));
+    }
+
+    /**
+     * Required by IUnlockCallback interface. Delegates to internal _unlockCallback.
+     *
+     * @param _data The encoded data for the unlock callback
+     * 
+     * @return bytes The result of the unlock callback
+     */
+    function unlockCallback(bytes calldata _data) external returns (bytes memory) {
+        return _unlockCallback(_data);
     }
 
     /**
