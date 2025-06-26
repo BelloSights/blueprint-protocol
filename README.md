@@ -191,18 +191,6 @@ The contracts can be deployed using Forge scripts with the Makefile commands.
 make deploy_blueprint_protocol ARGS="--network base_sepolia"
 ```
 
-### Deploy Hook System
-
-```bash
-make deploy_hook_system ARGS="--network base_sepolia"
-```
-
-### Deploy Position Manager
-
-```bash
-make deploy_position_manager ARGS="--network base_sepolia"
-```
-
 ### Verification
 
 For Blueprint Protocol implementation contracts:
