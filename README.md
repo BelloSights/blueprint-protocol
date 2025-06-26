@@ -243,12 +243,6 @@ make test_blueprint_protocol_hook
 
 # Test all hooks
 make test_all_hooks
-
-# Test position manager
-make test_any_position_manager
-
-# Run comprehensive tests
-make test_comprehensive
 ```
 
 Or directly with Forge:
