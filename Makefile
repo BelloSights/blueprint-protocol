@@ -7,7 +7,7 @@ endif
 # Load environment variables
 -include $(ENV_FILE)
 
-.PHONY: install build test coverage test_blueprint_protocol_hook test_all_hooks test_flaunch test_any_position_manager test_comprehensive deploy help
+.PHONY: install build test coverage test_blueprint_protocol_hook test_all_hooks test_blueprint_all deploy help
 
 DEFAULT_ANVIL_PRIVATE_KEY := 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 
@@ -51,21 +51,13 @@ test_blueprint_protocol_hook:
 	@echo "Running BlueprintProtocolHook tests..."
 	@source .env.test && forge test --match-contract BlueprintProtocolHookTest -vvvv --ffi
 
+test_blueprint_all:
+	@echo "Running all Blueprint tests..."
+	@source .env.test && forge test --match-contract "ArchitectureVerificationTest|BlueprintBuybackEscrowTest|BlueprintFactoryTest|BlueprintProtocolTest|BlueprintRewardPoolTest" -vvvv --ffi
+
 test_all_hooks:
 	@echo "Running all hook tests..."
 	@source .env.test && forge test --match-path "test/hooks/*" -vvvv --ffi
-
-test_flaunch:
-	@echo "Running AnyFlaunch tests..."
-	@source .env.test && forge test --match-contract AnyFlaunchTest -vvvv --ffi
-
-test_any_position_manager:
-	@echo "Running AnyPositionManager tests..."
-	@source .env.test && forge test --match-contract AnyPositionManagerTest -vvvv --ffi
-
-test_comprehensive:
-	@echo "Running all core tests..."
-	@source .env.test && forge test --match-contract "BlueprintProtocolHookTest|AnyFlaunchTest|AnyPositionManagerTest" -vvvv --ffi
 
 # Deployment
 deploy:
@@ -85,10 +77,7 @@ help:
 	@echo ""
 	@echo "SPECIFIC TESTS:"
 	@echo "  make test_blueprint_protocol_hook - Run BlueprintProtocolHook tests"
-	@echo "  make test_all_hooks              - Run all hook tests"
-	@echo "  make test_flaunch                - Run AnyFlaunch tests"
-	@echo "  make test_any_position_manager   - Run AnyPositionManager tests"
-	@echo "  make test_comprehensive          - Run all core tests"
+	@echo "  make test_blueprint_factory      - Run BlueprintFactory tests"
 	@echo ""
 	@echo "DEPLOYMENT:"
 	@echo "  make deploy                      - Deploy Blueprint Protocol"

@@ -28,7 +28,9 @@ contract ArchitectureVerificationTest is Test {
         console.log("[SUCCESS] PoolManager deployed");
         
         // 2. Test hook mining produces correct flags
-        uint160 flags = uint160(Hooks.AFTER_SWAP_FLAG);
+        uint160 flags = uint160(
+            Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG
+        );
         address deployer = address(uint160(uint256(keccak256(abi.encode("component_test", gasleft())))));
         
         (address hookAddress, bytes32 salt) = HookMiner.find(
@@ -47,17 +49,20 @@ contract ArchitectureVerificationTest is Test {
         // 4. Verify mining worked correctly
         uint160 hookAddr = uint160(address(hook));
         uint160 addressFlags = hookAddr & ((1 << 14) - 1);
-        uint160 expectedFlags = uint160(Hooks.AFTER_SWAP_FLAG);
-        assertEq(addressFlags, expectedFlags, "Hook must have AFTER_SWAP_FLAG");
+        uint160 expectedFlags = uint160(
+            Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG
+        );
+        assertEq(addressFlags, expectedFlags, "Hook must have BEFORE_INITIALIZE, BEFORE_SWAP, and AFTER_SWAP flags");
         console.log("[SUCCESS] Hook mining successful! Address flags:", addressFlags);
         
         // 5. Test hook permissions are correct
         Hooks.Permissions memory permissions = hook.getHookPermissions();
+        assertTrue(permissions.beforeInitialize, "beforeInitialize must be enabled");
+        assertTrue(permissions.beforeSwap, "beforeSwap must be enabled");
         assertTrue(permissions.afterSwap, "afterSwap must be enabled");
-        assertFalse(permissions.beforeSwap, "beforeSwap must be disabled");
         assertFalse(permissions.beforeAddLiquidity, "beforeAddLiquidity must be disabled");
         assertFalse(permissions.afterAddLiquidity, "afterAddLiquidity must be disabled");
-        console.log("[SUCCESS] Hook permissions correct! afterSwap enabled, others disabled");
+        console.log("[SUCCESS] Hook permissions correct! beforeInitialize, beforeSwap, and afterSwap enabled");
         
         // 6. Test that pool manager can create pools with hook
         address token1 = address(0x789);
@@ -75,16 +80,16 @@ contract ArchitectureVerificationTest is Test {
         console.log("[SUCCESS] Pool creation works with hook! Tick:", tick);
         
         console.log("\n=== ARCHITECTURE VERIFICATION SUMMARY ===");
-        console.log("[SUCCESS] Hook mining works perfectly with AFTER_SWAP_FLAG = 64");  
+        console.log("[SUCCESS] Hook mining works perfectly with BEFORE_INITIALIZE, BEFORE_SWAP, and AFTER_SWAP flags");  
         console.log("[SUCCESS] Hook permissions are correctly configured");
         console.log("[SUCCESS] Pool creation works with the hook");
         console.log("[SUCCESS] All contracts compile successfully");
         
         console.log("\n=== CORE ARCHITECTURE CONCLUSION ===");
         console.log("Blueprint Protocol V2 CORE ARCHITECTURE is CORRECTLY IMPLEMENTED!");
-        console.log("- Hook mining works perfectly for AFTER_SWAP_FLAG");
+        console.log("- Hook mining works perfectly for BEFORE_INITIALIZE, BEFORE_SWAP, and AFTER_SWAP flags");
         console.log("- Pool creation via poolManager.initialize() works");
-        console.log("- Hook has proper permissions (afterSwap only)");
+        console.log("- Hook has proper permissions (beforeInitialize, beforeSwap, and afterSwap)");
         console.log("- Ready for factory-hook integration pattern");
         
         assertTrue(true, "Core architecture verification complete and successful!");
@@ -95,7 +100,9 @@ contract ArchitectureVerificationTest is Test {
         console.log("\n=== Interface Compliance Verification ===");
         
         PoolManager manager = new PoolManager(address(this));
-        uint160 flags = uint160(Hooks.AFTER_SWAP_FLAG);
+        uint160 flags = uint160(
+            Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG
+        );
         address deployer = address(uint160(uint256(keccak256(abi.encode("interface_test", gasleft())))));
         
         (address hookAddress, bytes32 salt) = HookMiner.find(
@@ -127,7 +134,9 @@ contract ArchitectureVerificationTest is Test {
         console.log("\n=== Factory-Hook Pattern Verification ===");
         
         PoolManager manager = new PoolManager(address(this));
-        uint160 flags = uint160(Hooks.AFTER_SWAP_FLAG);
+        uint160 flags = uint160(
+            Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG
+        );
         address deployer = address(uint160(uint256(keccak256(abi.encode("pattern_test", gasleft())))));
         
         (address hookAddress, bytes32 salt) = HookMiner.find(

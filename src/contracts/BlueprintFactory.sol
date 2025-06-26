@@ -38,6 +38,12 @@ import {IBlueprintProtocol} from "@flaunch-interfaces/IBlueprintProtocol.sol";
 import {IBlueprintRewardPool} from "../interfaces/IBlueprintRewardPool.sol";
 import {CreatorCoin} from "./BlueprintCreatorCoin.sol";
 
+import {ModifyLiquidityParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
+import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
+import {LiquidityAmounts} from "@uniswap-periphery/libraries/LiquidityAmounts.sol";
+import {IUnlockCallback} from "@uniswap/v4-core/src/interfaces/callback/IUnlockCallback.sol";
+import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
+
 /**
  * BlueprintFactory - Upgradeable factory with role-based access control
  *
@@ -50,6 +56,7 @@ import {CreatorCoin} from "./BlueprintCreatorCoin.sol";
  * - Emergency pause functionality
  */
 contract BlueprintFactory is
+    IUnlockCallback,
     Initializable,
     AccessControlUpgradeable,
     UUPSUpgradeable,
@@ -66,6 +73,11 @@ contract BlueprintFactory is
     bytes32 public constant CREATOR_ROLE = keccak256("CREATOR_ROLE");
     bytes32 public constant EMERGENCY_ROLE = keccak256("EMERGENCY_ROLE");
     bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
+
+    // Token distribution constants (anti-dump mechanism)
+    uint256 public constant TREASURY_ALLOCATION_BPS = 7500; // 75% to buyback escrow
+    uint256 public constant POOL_ALLOCATION_BPS = 2500; // 25% to pool liquidity
+    uint256 public constant MAX_BPS = 10000;
 
     error BlueprintNetworkNotInitialized();
     error BlueprintNetworkAlreadyInitialized();
@@ -101,6 +113,25 @@ contract BlueprintFactory is
         address newValue
     );
 
+    // Enhanced Creator Token Launch Event
+    event CreatorTokenLaunchedEnhanced(
+        address indexed creatorToken,
+        address indexed creator,
+        address indexed treasury,
+        PoolId poolId,
+        uint256 rewardPoolId,
+        uint256 buybackEscrowId
+    );
+
+    // Creator Token Resource Events
+    event CreatorTokenResourcesCreated(
+        address indexed creatorToken,
+        address indexed rewardPool,
+        address indexed buybackEscrow,
+        uint256 rewardPoolId,
+        uint256 buybackEscrowId
+    );
+
     // Reward Pool Factory Events
     event RewardPoolCreated(
         uint256 indexed poolId,
@@ -134,6 +165,15 @@ contract BlueprintFactory is
         uint24 bpTreasuryFee; // Fee percentage for BP treasury (basis points)
         uint24 rewardPoolFee; // Fee percentage for XP reward pool (basis points)
         bool active; // Whether this configuration is active
+    }
+
+    /// Callback data for liquidity operations
+    struct LiquidityCallbackData {
+        PoolKey poolKey;
+        uint256 amount0;
+        uint256 amount1;
+        int24 tickLower;
+        int24 tickUpper;
     }
 
     /// Reward Pool Information
@@ -191,6 +231,17 @@ contract BlueprintFactory is
 
     /// Mapping from poolId to its info
     mapping(uint256 => RewardPoolInfo) public rewardPools;
+
+    // ===== CREATOR TOKEN RESOURCE MAPPINGS =====
+
+    /// Mapping from creator token address to its dedicated reward pool ID
+    mapping(address => uint256) public creatorTokenRewardPools;
+
+    /// Mapping from creator token address to its dedicated buyback escrow ID
+    mapping(address => uint256) public creatorTokenBuybackEscrows;
+
+    /// Mapping from creator token address to its creator address
+    mapping(address => address) public creatorTokenCreators;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -311,52 +362,6 @@ contract BlueprintFactory is
         blueprintHook = BlueprintProtocolHook(
             payable(blueprintHookImplementation)
         );
-
-        // Initialize the hook with the factory as initial admin (if not already initialized)
-        IBlueprintProtocol.FeeConfiguration
-            memory hookFeeConfig = IBlueprintProtocol.FeeConfiguration({
-                buybackFee: feeConfig.buybackFee,
-                creatorFee: feeConfig.creatorFee,
-                bpTreasuryFee: feeConfig.bpTreasuryFee,
-                rewardPoolFee: feeConfig.rewardPoolFee,
-                active: feeConfig.active
-            });
-
-        try
-            blueprintHook.initialize(
-                address(this), // admin
-                address(this) // factory
-            )
-        {
-            // Hook was successfully initialized by this factory
-            // Grant this factory DEFAULT_ADMIN_ROLE on the hook so it can call initializeBlueprintNetwork
-            blueprintHook.grantRole(
-                blueprintHook.DEFAULT_ADMIN_ROLE(),
-                address(this)
-            );
-
-            // Transfer admin roles to the original admin
-            blueprintHook.grantRole(
-                blueprintHook.DEFAULT_ADMIN_ROLE(),
-                msg.sender
-            );
-            blueprintHook.grantRole(
-                blueprintHook.DEFAULT_ADMIN_ROLE(),
-                msg.sender
-            );
-            blueprintHook.renounceRole(
-                blueprintHook.DEFAULT_ADMIN_ROLE(),
-                address(this)
-            );
-        } catch {
-            // Hook was already initialized, grant ourselves the DEFAULT_ADMIN_ROLE if we have DEFAULT_ADMIN_ROLE
-            try
-                blueprintHook.grantRole(
-                    blueprintHook.DEFAULT_ADMIN_ROLE(),
-                    address(this)
-                )
-            {} catch {}
-        }
 
         // Deploy Blueprint token first
         blueprintToken = _createBlueprintToken();
@@ -1143,7 +1148,7 @@ contract BlueprintFactory is
      * @param _tokenUri The token URI
      * @param _initialSupply The initial token supply (default 10B if 0)
      * @return creatorToken The address of the created token
-     * @return treasuryAddress The address of the creator's treasury
+     * @return treasuryAddress The address of the creator's treasury (buyback escrow)
      */
     function launchCreatorCoin(
         address _creator,
@@ -1293,8 +1298,16 @@ contract BlueprintFactory is
             ? TokenSupply.INITIAL_SUPPLY
             : _initialSupply;
 
+        // Create dedicated reward pool for this creator token
+        uint256 rewardPoolId = _createCreatorRewardPool(
+            _creator,
+            _name,
+            _symbol
+        );
+
         // Create buyback escrow as treasury directly
-        treasuryAddress = _createCreatorBuybackEscrow(_creator);
+        uint256 buybackEscrowId = nextBuybackEscrowId;
+        treasuryAddress = _createCreatorBuybackEscrowWithId(_creator);
 
         // Create the creator token
         creatorToken = _createCreatorToken(
@@ -1306,8 +1319,20 @@ contract BlueprintFactory is
             treasuryAddress
         );
 
+        // Store the associations between creator token and its resources
+        creatorTokenRewardPools[creatorToken] = rewardPoolId;
+        creatorTokenBuybackEscrows[creatorToken] = buybackEscrowId;
+        creatorTokenCreators[creatorToken] = _creator;
+
         // Create pool and register
-        _createPoolAndRegister(creatorToken, treasuryAddress, supply, _creator);
+        _createPoolAndRegister(
+            creatorToken,
+            treasuryAddress,
+            supply,
+            _creator,
+            rewardPoolId,
+            buybackEscrowId
+        );
 
         return (creatorToken, treasuryAddress);
     }
@@ -1319,7 +1344,9 @@ contract BlueprintFactory is
         address creatorToken,
         address payable treasuryAddress,
         uint256 supply,
-        address _creator
+        address _creator,
+        uint256 rewardPoolId,
+        uint256 buybackEscrowId
     ) internal {
         // Get blueprint token from hook
         address bpToken = blueprintHook.blueprintToken();
@@ -1339,16 +1366,28 @@ contract BlueprintFactory is
         // Initialize the pool directly through pool manager
         poolManager.initialize(poolKey, _getInitialSqrtPrice());
 
-        // Store pool information in the hook for swap routing
-        blueprintHook.registerCreatorPool(
-            creatorToken,
-            address(treasuryAddress),
-            poolKey
+        // Add the entire 25% pool allocation as initial liquidity
+        uint256 totalSupply = 10_000_000_000 ether; // 10B BP tokens
+        uint256 poolAllocation = (totalSupply * POOL_ALLOCATION_BPS) / MAX_BPS; // 25% = 2.5B BP tokens
+        uint256 ethForLiquidity = 0; // One-sided liquidity (only BP tokens, no ETH)
+
+        // Determine tick range for liquidity provision (wide range for better stability)
+        int24 tickLower = TickMath.minUsableTick(60); // Use pool's tick spacing
+        int24 tickUpper = TickMath.maxUsableTick(60);
+
+        // Add all 25% of BP tokens as initial liquidity to the pool
+        _addInitialLiquidity(
+            poolKey,
+            ethForLiquidity,
+            poolAllocation,
+            tickLower,
+            tickUpper
         );
 
         // Register the pool in the buyback escrow
         buybackEscrow.registerPool(poolKey);
 
+        // Emit both legacy and enhanced events for backward compatibility
         emit CreatorTokenLaunched(
             creatorToken,
             _creator,
@@ -1356,10 +1395,27 @@ contract BlueprintFactory is
             poolKey.toId(),
             0 // No tokenId since we're not using Flaunch
         );
+
+        emit CreatorTokenLaunchedEnhanced(
+            creatorToken,
+            _creator,
+            address(treasuryAddress),
+            poolKey.toId(),
+            rewardPoolId,
+            buybackEscrowId
+        );
+
+        emit CreatorTokenResourcesCreated(
+            creatorToken,
+            rewardPools[rewardPoolId].pool,
+            address(treasuryAddress),
+            rewardPoolId,
+            buybackEscrowId
+        );
     }
 
     /**
-     * Create ETH/BP pool through factory
+     * Create ETH/BP pool and transfer 25% of BP tokens for liquidity
      */
     function _createEthBpPool() internal {
         // Ensure proper currency ordering (currency0 < currency1)
@@ -1378,6 +1434,24 @@ contract BlueprintFactory is
         // Initialize the pool directly through pool manager
         poolManager.initialize(ethBpPoolKey, _getInitialSqrtPrice());
 
+        // Add the entire 25% pool allocation as initial liquidity
+        uint256 totalSupply = 10_000_000_000 ether; // 10B BP tokens
+        uint256 poolAllocation = (totalSupply * POOL_ALLOCATION_BPS) / MAX_BPS; // 25% = 2.5B BP tokens
+        uint256 ethForLiquidity = 0; // One-sided liquidity (only BP tokens, no ETH)
+
+        // Determine tick range for liquidity provision (wide range for better stability)
+        int24 tickLower = TickMath.minUsableTick(60); // Use pool's tick spacing
+        int24 tickUpper = TickMath.maxUsableTick(60);
+
+        // Add all 25% of BP tokens as initial liquidity to the pool
+        _addInitialLiquidity(
+            ethBpPoolKey,
+            ethForLiquidity,
+            poolAllocation,
+            tickLower,
+            tickUpper
+        );
+
         // Register the ETH/BP pool with the hook
         blueprintHook.registerEthBpPool(ethBpPoolKey);
 
@@ -1394,7 +1468,105 @@ contract BlueprintFactory is
     }
 
     /**
-     * Deploy Blueprint token
+     * Callback function required by IUnlockCallback for liquidity operations
+     */
+    function unlockCallback(
+        bytes calldata data
+    ) external override returns (bytes memory) {
+        require(
+            msg.sender == address(poolManager),
+            "Only pool manager can call"
+        );
+
+        LiquidityCallbackData memory params = abi.decode(
+            data,
+            (LiquidityCallbackData)
+        );
+
+        // Calculate proper liquidity using Uniswap V4 LiquidityAmounts library
+        uint160 sqrtPriceX96 = _getInitialSqrtPrice(); // 1:1 price
+
+        uint128 liquidity = LiquidityAmounts.getLiquidityForAmounts(
+            sqrtPriceX96,
+            TickMath.getSqrtPriceAtTick(params.tickLower),
+            TickMath.getSqrtPriceAtTick(params.tickUpper),
+            params.amount0,
+            params.amount1
+        );
+
+        // Add liquidity to the pool
+        (BalanceDelta delta, ) = poolManager.modifyLiquidity(
+            params.poolKey,
+            ModifyLiquidityParams({
+                tickLower: params.tickLower,
+                tickUpper: params.tickUpper,
+                liquidityDelta: int256(uint256(liquidity)),
+                salt: bytes32(0)
+            }),
+            ""
+        );
+
+        // Settle the deltas (transfer tokens to pool manager)
+        if (delta.amount0() > 0) {
+            IERC20(Currency.unwrap(params.poolKey.currency0)).transfer(
+                address(poolManager),
+                uint256(int256(delta.amount0()))
+            );
+        }
+        if (delta.amount1() > 0) {
+            IERC20(Currency.unwrap(params.poolKey.currency1)).transfer(
+                address(poolManager),
+                uint256(int256(delta.amount1()))
+            );
+        }
+
+        return abi.encode(delta);
+    }
+
+    /**
+     * Add initial liquidity to the ETH/BP pool
+     * @param poolKey The pool key for the ETH/BP pair
+     * @param amount0 Amount of currency0 (ETH) to add
+     * @param amount1 Amount of currency1 (BP) to add
+     * @param tickLower Lower tick for liquidity range
+     * @param tickUpper Upper tick for liquidity range
+     */
+    function _addInitialLiquidity(
+        PoolKey memory poolKey,
+        uint256 amount0,
+        uint256 amount1,
+        int24 tickLower,
+        int24 tickUpper
+    ) internal {
+        // Approve tokens for the pool manager
+        if (amount0 > 0) {
+            IERC20(Currency.unwrap(poolKey.currency0)).approve(
+                address(poolManager),
+                amount0
+            );
+        }
+        if (amount1 > 0) {
+            IERC20(Currency.unwrap(poolKey.currency1)).approve(
+                address(poolManager),
+                amount1
+            );
+        }
+
+        // Prepare callback data
+        LiquidityCallbackData memory callbackData = LiquidityCallbackData({
+            poolKey: poolKey,
+            amount0: amount0,
+            amount1: amount1,
+            tickLower: tickLower,
+            tickUpper: tickUpper
+        });
+
+        // Add liquidity through pool manager unlock mechanism
+        poolManager.unlock(abi.encode(callbackData));
+    }
+
+    /**
+     * Deploy Blueprint token with 75/25 anti-dump distribution
      */
     function _createBlueprintToken() internal returns (address) {
         // Generate a unique salt for the token
@@ -1409,7 +1581,7 @@ contract BlueprintFactory is
         );
 
         // Initialize the Blueprint token
-        IMemecoin(token).initialize("Blueprint", "BP", "");
+        CreatorCoin(token).initialize("Blueprint", "BP", "");
 
         // Set factory-specific properties for CreatorCoin
         if (token.code.length > 0) {
@@ -1417,8 +1589,18 @@ contract BlueprintFactory is
             try CreatorCoin(token).setTreasury(payable(treasury)) {} catch {}
         }
 
-        // Mint the initial supply to the hook (it will manage BP tokens)
-        IMemecoin(token).mint(address(blueprintHook), 10_000_000_000 ether); // 10B BP tokens
+        // Calculate 75/25 distribution for anti-dump protection
+        uint256 totalSupply = 10_000_000_000 ether; // 10B BP tokens
+        uint256 treasuryAllocation = (totalSupply * TREASURY_ALLOCATION_BPS) /
+            MAX_BPS; // 75% to buyback escrow
+        uint256 poolAllocation = (totalSupply * POOL_ALLOCATION_BPS) / MAX_BPS; // 25% to pool liquidity
+
+        // Mint 75% of supply to buyback escrow (treasury) - prevents dump mechanics
+        IMemecoin(token).mint(address(buybackEscrow), treasuryAllocation);
+
+        // Store the 25% for pool liquidity - will be added to pool after ETH/BP pool is created
+        // Mint to factory first, then transfer to pool during _createEthBpPool
+        IMemecoin(token).mint(address(this), poolAllocation);
 
         return token;
     }
@@ -1431,7 +1613,7 @@ contract BlueprintFactory is
      * @param _tokenUri The token URI
      * @param _supply The token supply
      * @param _creator The creator address
-     * @param _treasury The treasury address
+     * @param _treasury The treasury address (buyback escrow)
      * @return The address of the created token
      */
     function _createCreatorToken(
@@ -1462,8 +1644,15 @@ contract BlueprintFactory is
             try CreatorCoin(token).setTreasury(_treasury) {} catch {}
         }
 
-        // Mint the initial supply to this factory (will be distributed to pools)
-        IMemecoin(token).mint(address(this), _supply);
+        // Calculate 75/25 distribution to prevent pump and dump
+        uint256 treasuryAmount = (_supply * TREASURY_ALLOCATION_BPS) / MAX_BPS; // 75% to buyback escrow (treasury)
+        uint256 poolAmount = (_supply * POOL_ALLOCATION_BPS) / MAX_BPS; // 25% to pool for liquidity
+
+        // Mint 75% of supply to buyback escrow (treasury) - this prevents dump mechanics
+        IMemecoin(token).mint(_treasury, treasuryAmount);
+
+        // Mint 25% of supply to factory for pool liquidity
+        IMemecoin(token).mint(address(this), poolAmount);
 
         return token;
     }
@@ -1494,6 +1683,270 @@ contract BlueprintFactory is
         );
 
         return treasuryAddress;
+    }
+
+    /**
+     * Create a buyback escrow with tracking ID for a creator token
+     *
+     * @param _creator The creator address
+     * @return The address of the created buyback escrow (treasury)
+     */
+    function _createCreatorBuybackEscrowWithId(
+        address _creator
+    ) internal returns (address payable) {
+        uint256 escrowId = nextBuybackEscrowId;
+
+        // Generate a unique salt for the buyback escrow
+        bytes32 salt = keccak256(
+            abi.encodePacked(_creator, block.timestamp, escrowId)
+        );
+
+        // Deploy the buyback escrow using CREATE2 (serves as enhanced treasury)
+        address payable treasuryAddress = payable(
+            LibClone.cloneDeterministic(buybackEscrowImplementation, salt)
+        );
+
+        // Initialize the buyback escrow as treasury
+        BlueprintBuybackEscrow(treasuryAddress).initialize(
+            poolManager,
+            nativeToken,
+            blueprintToken,
+            address(this) // Factory is the admin
+        );
+
+        // Store buyback escrow info for tracking
+        buybackEscrows[escrowId] = BuybackEscrowInfo({
+            escrowId: escrowId,
+            escrow: address(treasuryAddress),
+            active: true, // Creator escrows start active
+            name: string(
+                abi.encodePacked("Creator Buyback Escrow - ", _creator)
+            ),
+            description: "Dedicated buyback escrow for creator token"
+        });
+
+        // Increment the next escrow ID
+        unchecked {
+            nextBuybackEscrowId++;
+        }
+
+        return treasuryAddress;
+    }
+
+    /**
+     * Create a dedicated reward pool for a creator token
+     *
+     * @param _creator The creator address
+     * @param _name The token name for pool identification
+     * @param _symbol The token symbol for pool identification
+     * @return poolId The ID of the created reward pool
+     */
+    function _createCreatorRewardPool(
+        address _creator,
+        string calldata _name,
+        string calldata _symbol
+    ) internal returns (uint256) {
+        uint256 poolId = nextRewardPoolId;
+
+        // Create a clone of the shared implementation
+        address clone = Clones.clone(rewardPoolImplementation);
+
+        // Initialize the clone
+        IBlueprintRewardPool(clone).initialize(
+            address(this),
+            SIGNING_DOMAIN,
+            SIGNATURE_VERSION
+        );
+
+        // Store reward pool info
+        string memory poolName = string(
+            abi.encodePacked(_name, " Reward Pool")
+        );
+        string memory poolDescription = string(
+            abi.encodePacked(
+                "Dedicated reward pool for ",
+                _name,
+                " (",
+                _symbol,
+                ") creator token"
+            )
+        );
+
+        rewardPools[poolId] = RewardPoolInfo({
+            poolId: poolId,
+            pool: clone,
+            active: true, // Creator pools start active
+            name: poolName,
+            description: poolDescription
+        });
+
+        // Activate the pool immediately
+        IBlueprintRewardPool(clone).setActive(true);
+
+        // Grant the creator signer role on their reward pool
+        IBlueprintRewardPool(clone).grantSignerRole(_creator);
+
+        // Increment the next pool ID
+        unchecked {
+            nextRewardPoolId++;
+        }
+
+        return poolId;
+    }
+
+    // ===== CREATOR TOKEN RESOURCE GETTERS =====
+
+    /**
+     * Gets the reward pool ID associated with a creator token
+     *
+     * @param creatorToken The creator token address
+     * @return The reward pool ID (0 if not found)
+     */
+    function getCreatorTokenRewardPool(
+        address creatorToken
+    ) external view returns (uint256) {
+        return creatorTokenRewardPools[creatorToken];
+    }
+
+    /**
+     * Gets the buyback escrow ID associated with a creator token
+     *
+     * @param creatorToken The creator token address
+     * @return The buyback escrow ID (0 if not found)
+     */
+    function getCreatorTokenBuybackEscrow(
+        address creatorToken
+    ) external view returns (uint256) {
+        return creatorTokenBuybackEscrows[creatorToken];
+    }
+
+    /**
+     * Gets the creator address associated with a creator token
+     *
+     * @param creatorToken The creator token address
+     * @return The creator address (address(0) if not found)
+     */
+    function getCreatorTokenCreator(
+        address creatorToken
+    ) external view returns (address) {
+        return creatorTokenCreators[creatorToken];
+    }
+
+    /**
+     * Gets the reward pool address associated with a creator token
+     *
+     * @param creatorToken The creator token address
+     * @return The reward pool address (address(0) if not found)
+     */
+    function getCreatorTokenRewardPoolAddress(
+        address creatorToken
+    ) external view returns (address) {
+        uint256 poolId = creatorTokenRewardPools[creatorToken];
+        if (poolId == 0) return address(0);
+        return rewardPools[poolId].pool;
+    }
+
+    /**
+     * Gets the buyback escrow address associated with a creator token
+     *
+     * @param creatorToken The creator token address
+     * @return The buyback escrow address (address(0) if not found)
+     */
+    function getCreatorTokenBuybackEscrowAddress(
+        address creatorToken
+    ) external view returns (address) {
+        uint256 escrowId = creatorTokenBuybackEscrows[creatorToken];
+        if (escrowId == 0) return address(0);
+        return buybackEscrows[escrowId].escrow;
+    }
+
+    /**
+     * Gets comprehensive information about a creator token's resources
+     *
+     * @param creatorToken The creator token address
+     * @return creator The creator address
+     * @return rewardPoolId The reward pool ID
+     * @return rewardPoolAddress The reward pool address
+     * @return buybackEscrowId The buyback escrow ID
+     * @return buybackEscrowAddress The buyback escrow address
+     */
+    function getCreatorTokenResources(
+        address creatorToken
+    )
+        external
+        view
+        returns (
+            address creator,
+            uint256 rewardPoolId,
+            address rewardPoolAddress,
+            uint256 buybackEscrowId,
+            address buybackEscrowAddress
+        )
+    {
+        creator = creatorTokenCreators[creatorToken];
+        rewardPoolId = creatorTokenRewardPools[creatorToken];
+        buybackEscrowId = creatorTokenBuybackEscrows[creatorToken];
+
+        rewardPoolAddress = rewardPoolId > 0
+            ? rewardPools[rewardPoolId].pool
+            : address(0);
+        buybackEscrowAddress = buybackEscrowId > 0
+            ? buybackEscrows[buybackEscrowId].escrow
+            : address(0);
+    }
+
+    /**
+     * Checks if a creator token has associated resources
+     *
+     * @param creatorToken The creator token address
+     * @return True if the creator token has associated reward pool and buyback escrow
+     */
+    function hasCreatorTokenResources(
+        address creatorToken
+    ) external view returns (bool) {
+        return
+            creatorTokenRewardPools[creatorToken] > 0 &&
+            creatorTokenBuybackEscrows[creatorToken] > 0;
+    }
+
+    // ===== TOKEN DISTRIBUTION HELPERS =====
+
+    /**
+     * Calculates the treasury allocation amount for a given supply
+     *
+     * @param totalSupply The total token supply
+     * @return The amount allocated to treasury (75%)
+     */
+    function calculateTreasuryAllocation(
+        uint256 totalSupply
+    ) external pure returns (uint256) {
+        return (totalSupply * TREASURY_ALLOCATION_BPS) / MAX_BPS;
+    }
+
+    /**
+     * Calculates the pool allocation amount for a given supply
+     *
+     * @param totalSupply The total token supply
+     * @return The amount allocated to pool liquidity (25%)
+     */
+    function calculatePoolAllocation(
+        uint256 totalSupply
+    ) external pure returns (uint256) {
+        return (totalSupply * POOL_ALLOCATION_BPS) / MAX_BPS;
+    }
+
+    /**
+     * Gets the token distribution percentages
+     *
+     * @return treasuryBps Basis points allocated to treasury (7500 = 75%)
+     * @return poolBps Basis points allocated to pool (2500 = 25%)
+     */
+    function getTokenDistribution()
+        external
+        pure
+        returns (uint256 treasuryBps, uint256 poolBps)
+    {
+        return (TREASURY_ALLOCATION_BPS, POOL_ALLOCATION_BPS);
     }
 
     /**

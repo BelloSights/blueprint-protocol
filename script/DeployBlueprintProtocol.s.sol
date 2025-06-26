@@ -6,6 +6,7 @@ import {console} from "forge-std/console.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
+import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
 
 import {BlueprintProtocolHook} from "@flaunch/hooks/BlueprintProtocolHook.sol";
 import {BlueprintFactory} from "@flaunch/BlueprintFactory.sol";
@@ -22,6 +23,11 @@ import {HookMiner} from "../test/utils/HookMiner.sol";
  * @dev Deploys factory, hook, implementations and initializes the system
  */
 contract DeployBlueprintProtocol is Script {
+    // Token distribution constants (anti-dump mechanism)
+    uint256 public constant TREASURY_ALLOCATION_BPS = 7500; // 75% to buyback escrow
+    uint256 public constant ADMIN_ALLOCATION_BPS = 2500; // 25% to admin for pool liquidity
+    uint256 public constant MAX_BPS = 10000;
+
     // Deployment configuration
     struct DeploymentConfig {
         address poolManager;
@@ -32,6 +38,7 @@ contract DeployBlueprintProtocol is Script {
         string blueprintName;
         string blueprintSymbol;
         string blueprintMetadataURI;
+        uint256 blueprintInitialSupply; // Total initial supply
     }
 
     // Deployed contract addresses
@@ -95,8 +102,11 @@ contract DeployBlueprintProtocol is Script {
 
         // 2. Mine and deploy hook with proper flags
         console.log("2. Mining and deploying hook...");
+        // Need BEFORE_INITIALIZE_FLAG, BEFORE_SWAP_FLAG and AFTER_SWAP_FLAG for Blueprint Protocol
         uint160 hookFlags = uint160(
-            (1 << 159) // AFTER_SWAP_FLAG = 64 (bit 6)
+            Hooks.BEFORE_INITIALIZE_FLAG | // bit 0 - to enforce dynamic fees
+                Hooks.BEFORE_SWAP_FLAG | // bit 6 - to set dynamic fees
+                Hooks.AFTER_SWAP_FLAG // bit 7 - to collect and distribute fees
         );
 
         (address hookAddress, bytes32 salt) = HookMiner.find(
@@ -146,37 +156,45 @@ contract DeployBlueprintProtocol is Script {
 
         // 5. Initialize hook with factory address
         console.log("5. Initializing hook...");
-        BlueprintProtocolHook(payable(contracts.hookImplementation)).initialize(
-            config.admin,
-            contracts.factoryProxy
+        BlueprintProtocolHook hook = BlueprintProtocolHook(
+            payable(contracts.hookImplementation)
         );
+
+        // Initialize hook with admin, but factory needs network initialization permissions
+        hook.initialize(config.admin, contracts.factoryProxy);
+
+        // Grant the factory DEFAULT_ADMIN_ROLE so it can initialize the network
+        hook.grantRole(hook.DEFAULT_ADMIN_ROLE(), contracts.factoryProxy);
+
         console.log("   Hook initialized with factory");
+        console.log("   Factory granted DEFAULT_ADMIN_ROLE on hook");
 
-        // 6. Deploy Blueprint token
-        console.log("6. Deploying Blueprint token...");
-        contracts.blueprintToken = address(new CreatorCoin());
-        CreatorCoin(contracts.blueprintToken).initialize(
-            config.blueprintName,
-            config.blueprintSymbol,
-            config.blueprintMetadataURI
+        // 6. Initialize Blueprint Network (this handles everything!)
+        console.log(
+            "6. Initializing Blueprint Network with anti-dump distribution..."
         );
+        console.log("   This will:");
+        console.log("   - Deploy and initialize all proxy contracts");
+        console.log("   - Create Blueprint token with 75/25 distribution");
+        console.log("   - Create ETH/BP pool with proper liquidity");
+        console.log("   - Set up all contract relationships");
 
-        // Mint initial supply to admin
-        CreatorCoin(contracts.blueprintToken).mint(
-            config.admin,
-            10000000000 * 10 ** 18
-        ); // 10B initial supply
-        console.log("   Blueprint Token:", contracts.blueprintToken);
-
-        // 7. Initialize Blueprint Network
-        console.log("7. Initializing Blueprint Network...");
         BlueprintFactory(contracts.factoryProxy).initializeBlueprintNetwork(
             config.admin // governance address
         );
-        console.log("   Blueprint Network initialized");
 
-        // 8. Update fee configuration
-        console.log("8. Setting fee configuration...");
+        // Get the deployed Blueprint token address
+        contracts.blueprintToken = BlueprintFactory(contracts.factoryProxy)
+            .blueprintToken();
+
+        console.log("   Blueprint Network initialized successfully");
+        console.log("   Blueprint Token:", contracts.blueprintToken);
+        console.log(
+            "   Anti-dump distribution: 75%% buyback escrow, 25%% pool liquidity"
+        );
+
+        // 7. Update fee configuration
+        console.log("7. Setting fee configuration...");
         BlueprintFactory(contracts.factoryProxy).updateFeeConfiguration(
             config.feeConfig
         );
@@ -200,16 +218,11 @@ contract DeployBlueprintProtocol is Script {
         config.admin = vm.envOr("ADMIN", msg.sender);
         config.treasury = vm.envOr("BP_TREASURY", msg.sender);
 
-        // Blueprint token configuration
-        config.blueprintName = vm.envOr(
-            "BLUEPRINT_NAME",
-            string("Blueprint Protocol")
-        );
-        config.blueprintSymbol = vm.envOr("BLUEPRINT_SYMBOL", string("BP"));
-        config.blueprintMetadataURI = vm.envOr(
-            "BLUEPRINT_METADATA_URI",
-            string("https://blueprint.protocol/metadata/bp.json")
-        );
+        // Blueprint token configuration (handled internally by initializeBlueprintNetwork)
+        config.blueprintName = "Blueprint Protocol"; // Fixed internally
+        config.blueprintSymbol = "BP"; // Fixed internally
+        config.blueprintMetadataURI = ""; // Fixed internally
+        config.blueprintInitialSupply = 10000000000 * 10 ** 18; // 10B tokens (fixed internally)
 
         // Realistic fee configuration: 1% total fees split 60/20/10/10
         // Note: In Uniswap V4, 3000 = 0.3%, so we need to scale appropriately
@@ -235,7 +248,7 @@ contract DeployBlueprintProtocol is Script {
             config.feeConfig.creatorFee +
             config.feeConfig.bpTreasuryFee +
             config.feeConfig.rewardPoolFee;
-        require(totalFees <= 500, "Total fees cannot exceed 5%"); // Max 5% total fees
+        require(totalFees <= 10_000, "Total fees cannot exceed 1%"); // Max 1% total fees
         require(totalFees > 0, "Total fees must be greater than 0");
 
         console.log("Configuration loaded:");
@@ -250,6 +263,9 @@ contract DeployBlueprintProtocol is Script {
                 ? "Native ETH"
                 : vm.toString(config.nativeToken)
         );
+        console.log("  Blueprint Token Supply: 10B BP tokens (fixed)");
+        console.log("  Treasury Allocation (75%%): 7.5B BP tokens");
+        console.log("  Admin Allocation (25%%): 2.5B BP tokens");
     }
 
     /**
@@ -296,6 +312,12 @@ contract DeployBlueprintProtocol is Script {
         console.log("  Name:        %s", config.blueprintName);
         console.log("  Symbol:      %s", config.blueprintSymbol);
         console.log("  Metadata:    %s", config.blueprintMetadataURI);
+        console.log("  Total Supply: 10B BP tokens");
+
+        console.log("");
+        console.log("Blueprint Token Distribution (Anti-Dump):");
+        console.log("  Buyback Escrow (75%%): 7.5B BP tokens");
+        console.log("  Pool Liquidity (25%%): 2.5B BP tokens");
         console.log("");
         console.log("Fee Configuration (basis points):");
         console.log(
@@ -331,10 +353,15 @@ contract DeployBlueprintProtocol is Script {
 
         console.log("Next steps:");
         console.log("1. Verify contracts on block explorer");
-        console.log("2. Create first Blueprint creator coin");
+        console.log(
+            "2. Create first Blueprint creator coin (with 75/25 distribution)"
+        );
         console.log("3. Test ETH -> Creator routing");
         console.log("4. Set up reward pools for creators");
         console.log("5. Configure buyback automation");
+        console.log(
+            "6. Note: 75%% of BP tokens are in buyback escrow for anti-dump protection"
+        );
     }
 
     /**
