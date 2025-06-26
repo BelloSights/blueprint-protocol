@@ -1,0 +1,370 @@
+# Blueprint Protocol
+
+## Overview
+
+Blueprint Protocol is a comprehensive token launch and management system built on Uniswap V4. It enables creators to launch tokens with automatic liquidity management, fee distribution, buyback mechanisms, and reward systems.
+
+## Architecture
+
+### Core Components
+
+1. **BlueprintFactory** - Main factory for deploying Blueprint and Creator tokens
+2. **BlueprintProtocolHook** - Uniswap V4 hook for swap routing and fee collection
+3. **BlueprintBuybackEscrow** - Manages fee collection and token buybacks
+4. **BlueprintRewardPool** - Handles XP-based reward distribution
+5. **CreatorCoin** - ERC20 token implementation for creators
+
+### Contract Interactions
+
+```
+Factory → poolManager.initialize(poolKey) → hook.registerPool(poolKey)
+```
+
+The factory is responsible for:
+- Creating all pools using `poolManager.initialize()`
+- Registering pools with hooks after creation
+- Managing token deployments
+
+The hook is responsible for:
+- Swap routing via `afterSwap`
+- Fee collection and distribution
+- State management for pool mappings
+
+## Fee Structure
+
+### Total Fees: 1% (10000 in Uniswap V4 scale)
+
+- **Buyback Fee**: 0.6% (6000) - 60% of total fees
+- **Creator Fee**: 0.2% (2000) - 20% of total fees  
+- **Treasury Fee**: 0.1% (1000) - 10% of total fees
+- **Reward Pool Fee**: 0.1% (1000) - 10% of total fees
+
+*Note: In Uniswap V4, fee values are in hundredths of basis points where 3000 = 0.3%*
+
+## Token Economics
+
+### Blueprint Token (BP)
+- **Name**: Blueprint Protocol
+- **Symbol**: BP
+- **Initial Supply**: 10 billion tokens (10,000,000,000)
+- **Purpose**: Base trading pair for all creator tokens
+
+### Creator Tokens
+- **Standard**: ERC20 with voting capabilities
+- **Features**: Permit2 integration, cross-chain compatibility
+- **Governance**: Built-in delegation and voting mechanisms
+
+## Deployment Process
+
+### 1. Implementation Contracts
+```solidity
+// Deploy base implementations
+CreatorCoin creatorCoinImpl = new CreatorCoin();
+BlueprintBuybackEscrow buybackEscrowImpl = new BlueprintBuybackEscrow();
+BlueprintRewardPool rewardPoolImpl = new BlueprintRewardPool();
+```
+
+### 2. Hook Deployment with Mining
+```solidity
+// Mine hook address with correct flags (AFTER_SWAP_FLAG = 64)
+address hookAddress = HookMiner.find(
+    CREATE2_DEPLOYER,
+    salt,
+    type(BlueprintProtocolHook).creationCode,
+    AFTER_SWAP_FLAG
+);
+
+// Deploy hook at mined address
+BlueprintProtocolHook hook = new BlueprintProtocolHook{salt: salt}(
+    poolManager,
+    hookAddress
+);
+```
+
+### 3. Factory Deployment
+```solidity
+// Deploy factory proxy
+bytes memory initData = abi.encodeWithSelector(
+    BlueprintFactory.initialize.selector,
+    poolManager,
+    admin,
+    treasury,
+    nativeToken,
+    creatorCoinImplementation,
+    hookImplementation,
+    buybackEscrowImplementation,
+    rewardPoolImplementation
+);
+
+address factoryProxy = address(new ERC1967Proxy(factoryImpl, initData));
+```
+
+### 4. Blueprint Token Creation
+```solidity
+// Deploy Blueprint token
+address blueprintToken = address(new CreatorCoin());
+CreatorCoin(blueprintToken).initialize(
+    "Blueprint Protocol",
+    "BP", 
+    "ipfs://blueprint-metadata"
+);
+
+// Mint initial supply
+CreatorCoin(blueprintToken).mint(admin, 10_000_000_000 * 10**18);
+```
+
+### 5. Network Initialization
+```solidity
+// Initialize Blueprint network with ETH/BP pool
+IBlueprintProtocol(factoryProxy).initializeBlueprintNetwork(
+    blueprintToken,
+    address(0), // Native ETH
+    feeConfiguration
+);
+```
+
+## Fee Configuration
+
+### Structure
+```solidity
+struct FeeConfiguration {
+    uint24 buybackFee;      // 6000 = 0.6%
+    uint24 creatorFee;      // 2000 = 0.2%  
+    uint24 bpTreasuryFee;   // 1000 = 0.1%
+    uint24 rewardPoolFee;   // 1000 = 0.1%
+    bool active;
+}
+```
+
+### Validation
+- Total fees must not exceed 5% (50000)
+- All individual fees must be non-negative
+- Configuration must be marked as active
+
+## Pool Management
+
+### ETH/BP Pool
+- **Currency0**: ETH (address(0))
+- **Currency1**: Blueprint Token
+- **Fee**: 3000 (0.3% in Uniswap V4)
+- **Tick Spacing**: 60
+- **Hook**: BlueprintProtocolHook
+
+### Creator Token Pools
+- **Currency0**: Blueprint Token
+- **Currency1**: Creator Token
+- **Fee**: 3000 (0.3%)
+- **Tick Spacing**: 60
+- **Hook**: BlueprintProtocolHook
+
+## Swap Routing
+
+### ETH → Creator Token
+1. User sends ETH
+2. Hook swaps ETH → BP in ETH/BP pool
+3. Hook swaps BP → Creator Token in Creator/BP pool
+4. Fees collected and distributed
+
+### Creator Token → ETH
+1. User sends Creator Token
+2. Hook swaps Creator Token → BP in Creator/BP pool
+3. Hook swaps BP → ETH in ETH/BP pool
+4. Fees collected and distributed
+
+## Buyback Mechanism
+
+### BlueprintBuybackEscrow Features
+- **Fee Collection**: Receives fees in both ERC20 and native ETH
+- **Manual Buybacks**: BUYBACK_MANAGER_ROLE can initiate buybacks
+- **Token Burning**: Burns bought-back tokens permanently
+- **Emergency Functions**: Pause/unpause and emergency withdrawals
+- **Access Control**: Role-based permissions
+
+### Buyback Process
+1. Fees accumulate in BuybackEscrow
+2. Authorized manager triggers buyback
+3. Escrow uses accumulated fees to buy creator tokens
+4. Bought tokens are permanently burned
+
+## Reward System
+
+### BlueprintRewardPool Features
+- **XP Tracking**: Users earn XP for various activities
+- **Multiple Pools**: Support for different reward types
+- **Batch Operations**: Efficient bulk user additions
+- **Pool Management**: Activation/deactivation controls
+
+### XP Earning Activities
+- Token trading
+- Liquidity provision
+- Community participation
+- Creator token launches
+
+## Security Features
+
+### Access Control
+- **DEFAULT_ADMIN_ROLE**: Full administrative control
+- **BUYBACK_MANAGER_ROLE**: Buyback execution rights
+- **Factory Owner**: Token deployment permissions
+
+### Safety Mechanisms
+- **Pausable Contracts**: Emergency stop functionality
+- **Upgrade Protection**: Proper proxy patterns
+- **Reentrancy Guards**: Protection against attacks
+- **Input Validation**: Comprehensive parameter checking
+
+## Integration Guide
+
+### For Developers
+
+1. **Deploy Infrastructure**
+   ```bash
+   make deploy_blueprint_network
+   ```
+
+2. **Create Creator Token**
+   ```solidity
+   address creatorToken = factory.launchCreatorToken(
+       "Creator Name",
+       "CREATOR",
+       "ipfs://metadata",
+       initialSupply,
+       creator
+   );
+   ```
+
+3. **Handle Swaps**
+   ```solidity
+   // ETH to Creator Token
+   uint256 creatorAmount = hook.routeEthToCreator{value: ethAmount}(
+       creatorToken,
+       minCreatorOut
+   );
+   ```
+
+### For Frontend
+
+1. **Connect to Factory**
+   ```javascript
+   const factory = new ethers.Contract(FACTORY_ADDRESS, FACTORY_ABI, signer);
+   ```
+
+2. **Monitor Events**
+   ```javascript
+   factory.on("CreatorTokenCreated", (token, creator, supply) => {
+       console.log(`New token: ${token} by ${creator}`);
+   });
+   ```
+
+3. **Execute Swaps**
+   ```javascript
+   const tx = await hook.routeEthToCreator(creatorToken, minOut, {
+       value: ethAmount
+   });
+   ```
+
+## Environment Configuration
+
+### Required Variables
+```bash
+POOL_MANAGER=0x...          # Uniswap V4 PoolManager address
+ADMIN=0x...                 # Administrative address
+BP_TREASURY=0x...           # Treasury address
+NATIVE_TOKEN=0x0            # Use address(0) for native ETH
+```
+
+### Optional Variables
+```bash
+BLUEPRINT_NAME="Blueprint Protocol"
+BLUEPRINT_SYMBOL="BP"
+BLUEPRINT_METADATA="ipfs://..."
+```
+
+## Testing
+
+### Run All Tests
+```bash
+make test_blueprint_all
+```
+
+### Specific Component Tests
+```bash
+make test_blueprint_factory     # Factory tests
+make test_buyback_escrow       # BuybackEscrow tests
+make test_reward_pool          # RewardPool tests
+make test_blueprint_comprehensive  # All Blueprint tests
+```
+
+### Test Coverage
+- Factory deployment and initialization
+- Token creation and management
+- Hook functionality and swap routing
+- Fee collection and distribution
+- Buyback mechanisms
+- Reward pool operations
+- Access control and security
+- Upgrade patterns
+
+## Deployment Networks
+
+### Supported Networks
+- Base Sepolia (Testnet)
+- Base Mainnet
+- Ethereum Mainnet
+- Optimism
+- Arbitrum
+
+### Network-Specific Commands
+```bash
+make deploy_blueprint_network --network base_sepolia
+make verify_blueprint_factory --network base_sepolia
+make upgrade_blueprint_network --network base
+```
+
+## Monitoring and Analytics
+
+### Key Metrics
+- Total Volume Traded
+- Active Creator Tokens
+- Fees Collected and Distributed
+- Buyback Amounts
+- XP Distribution
+- User Engagement
+
+### Event Tracking
+- Token deployments
+- Swap transactions
+- Fee distributions
+- Buyback executions
+- XP awards
+- Pool creations
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Hook Address Validation**
+   - Ensure hook is deployed at correct mined address
+   - Verify hook flags match pool requirements
+
+2. **Fee Configuration**
+   - Check total fees don't exceed 5%
+   - Ensure fee structure matches 60/20/10/10 split
+
+3. **Pool Creation**
+   - Verify currency ordering (lower address first)
+   - Check tick spacing compatibility
+
+4. **Access Control**
+   - Confirm proper role assignments
+   - Verify admin permissions
+
+### Support
+For technical support and questions:
+- GitHub Issues: [Repository Issues](https://github.com/your-org/blueprint-protocol/issues)
+- Documentation: [Full Docs](https://docs.blueprintprotocol.com)
+- Discord: [Community Channel](https://discord.gg/blueprint)
+
+---
+
+*Blueprint Protocol - Democratizing Token Launches* 

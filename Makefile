@@ -7,7 +7,7 @@ endif
 # Load environment variables
 -include $(ENV_FILE)
 
-.PHONY: install build test coverage test_blueprint_compilation test_blueprint_network test_blueprint_position_manager test_blueprint_hook test_blueprint_factory test_buyback_escrow test_upgradeable test_blueprint_all deploy_blueprint_factory deploy_blueprint_hook deploy_buyback_escrow deploy_blueprint_network deploy_blueprint_network_local deploy_all_blueprint upgrade_blueprint_factory upgrade_blueprint_hook upgrade_buyback_escrow upgrade_blueprint_network verify_blueprint_factory verify_blueprint_hook verify_buyback_escrow verify_blueprint_network verify_blueprint_factory_base_sepolia verify_blueprint_hook_base_sepolia verify_buyback_escrow_base_sepolia verify_blueprint_network_base_sepolia help_blueprint help
+.PHONY: install build test coverage test_blueprint_compilation test_blueprint_network test_blueprint_hook test_blueprint_factory test_buyback_escrow test_upgradeable test_blueprint_all test_blueprint_comprehensive test_blueprint_v2 test_reward_pool deploy_blueprint_factory deploy_blueprint_hook deploy_buyback_escrow deploy_blueprint_network deploy_blueprint_network_local deploy_all_blueprint upgrade_blueprint_factory upgrade_blueprint_hook upgrade_buyback_escrow upgrade_blueprint_network verify_blueprint_factory verify_blueprint_hook verify_buyback_escrow verify_blueprint_network verify_blueprint_factory_base_sepolia verify_blueprint_hook_base_sepolia verify_buyback_escrow_base_sepolia verify_blueprint_network_base_sepolia help_blueprint help
 
 DEFAULT_ANVIL_PRIVATE_KEY := 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 
@@ -61,18 +61,16 @@ test-coverage:
 coverage :; forge coverage --ffi --report debug > coverage-report.txt
 snapshot :; forge snapshot --ffi
 
-# Blueprint Network specific tests
+# Blueprint Protocol specific tests
 test_blueprint_compilation:
-	@echo "Testing Blueprint Network contract compilation..."
+	@echo "Testing Blueprint Protocol contract compilation..."
 	@source .env.test && forge build --force --via-ir
 
 test_blueprint_network:
-	@echo "Running Blueprint Network system tests..."
+	@echo "Running Blueprint Protocol system tests..."
 	@source .env.test && forge test --match-contract BlueprintNetworkTest -vvvv --ffi
 
-test_blueprint_position_manager:
-	@echo "Running BlueprintPositionManager comprehensive tests..."
-	@source .env.test && forge test --match-contract BlueprintPositionManagerTest -vvvv --ffi
+
 
 test_blueprint_hook:
 	@echo "Running BlueprintNetworkHook tests..."
@@ -83,32 +81,40 @@ test_blueprint_factory:
 	@source .env.test && forge test --match-contract BlueprintFactoryTest -vvvv --ffi
 
 test_buyback_escrow:
-	@echo "Running BuybackEscrow tests..."
-	@source .env.test && forge test --match-contract BuybackEscrowTest -vvvv --ffi
+	@echo "Running BlueprintBuybackEscrow tests..."
+	@source .env.test && forge test --match-contract BlueprintBuybackEscrowTest -vvvv --ffi
 
 test_upgradeable:
-	@echo "Running upgradeable Blueprint Network tests..."
+	@echo "Running upgradeable Blueprint Protocol tests..."
 	@source .env.test && forge test --match-contract UpgradeableBlueprintNetworkTest -vvvv --ffi
 
 test_blueprint_all:
-	@echo "Running ALL Blueprint Network tests..."
-	@source .env.test && forge test --match-contract "BlueprintPositionManagerTest|BlueprintFactoryTest|BlueprintNetworkHookTest|BuybackEscrowTest|RewardPoolTest" -vvvv --ffi
+	@echo "Running ALL Blueprint Protocol tests..."
+	@source .env.test && forge test --match-contract "BlueprintFactoryTest|BlueprintBuybackEscrowTest|BlueprintRewardPoolTest" -vvvv --ffi
+
+test_blueprint_comprehensive:
+	@echo "Running comprehensive Blueprint Protocol tests (all Blueprint files)..."
+	@source .env.test && forge test --match-path "*Blueprint*" -vvvv --ffi
+
+test_blueprint_v2:
+	@echo "Running Blueprint Protocol V2 comprehensive tests..."
+	@source .env.test && forge test --match-contract BlueprintProtocolV2ComprehensiveTest -vvvv --ffi
 
 test_blueprint_core:
-	@echo "Running core Blueprint Network tests..."
-	@source .env.test && forge test --match-contract "BlueprintPositionManagerTest|BlueprintFactoryTest|BlueprintNetworkHookTest" -vvvv --ffi
+	@echo "Running core Blueprint Protocol tests..."
+	@source .env.test && forge test --match-contract "BlueprintFactoryTest|BlueprintNetworkHookTest" -vvvv --ffi
 
 test_reward_pool:
-	@echo "Running RewardPool tests..."
-	@source .env.test && forge test --match-contract RewardPoolTest -vvvv --ffi
+	@echo "Running BlueprintRewardPool tests..."
+	@source .env.test && forge test --match-contract BlueprintRewardPoolTest -vvvv --ffi
 
-# Blueprint Network deployment commands
+# Blueprint Protocol deployment commands
 deploy_blueprint_factory:
 	@echo "Deploying Blueprint Factory (upgradeable)..."
 	@source $(ENV_FILE) && forge script script/DeployBlueprintFactory.s.sol:DeployBlueprintFactory $(NETWORK_ARGS) --ffi --via-ir
 
 deploy_blueprint_hook:
-	@echo "Deploying Blueprint Network Hook (upgradeable)..."
+	@echo "Deploying Blueprint Protocol Hook (upgradeable)..."
 	@source $(ENV_FILE) && forge script script/DeployBlueprintHook.s.sol:DeployBlueprintHook $(NETWORK_ARGS) --ffi --via-ir
 
 deploy_buyback_escrow:
@@ -116,12 +122,12 @@ deploy_buyback_escrow:
 	@source $(ENV_FILE) && forge script script/DeployBuybackEscrow.s.sol:DeployBuybackEscrow $(NETWORK_ARGS) --ffi --via-ir
 
 deploy_blueprint_network: deploy_blueprint_factory deploy_blueprint_hook deploy_buyback_escrow
-	@echo "Deploying complete Blueprint Network system..."
+	@echo "Deploying complete Blueprint Protocol system..."
 	@source $(ENV_FILE) && forge script script/DeployBlueprintNetwork.s.sol:DeployBlueprintNetwork $(NETWORK_ARGS) --ffi --via-ir
-	@echo "Blueprint Network deployment completed!"
+	@echo "Blueprint Protocol deployment completed!"
 
 deploy_blueprint_network_local:
-	@echo "Deploying Blueprint Network to local network..."
+	@echo "Deploying Blueprint Protocol to local network..."
 	@source .env.test && forge script script/DeployBlueprintNetwork.s.sol:DeployBlueprintNetwork \
 		--rpc-url http://localhost:8545 \
 		--private-key $(DEFAULT_ANVIL_PRIVATE_KEY) \
@@ -131,9 +137,9 @@ deploy_blueprint_network_local:
 		-vvvv
 
 deploy_all_blueprint: deploy_blueprint_network
-	@echo "Complete Blueprint Network deployment finished!"
+	@echo "Complete Blueprint Protocol deployment finished!"
 
-# Blueprint Network upgrade commands
+# Blueprint Protocol upgrade commands
 upgrade_blueprint_factory:
 	@echo "Upgrading Blueprint Factory..."
 	@source $(ENV_FILE) && forge script script/UpgradeBlueprintFactory.s.sol:UpgradeBlueprintFactory $(NETWORK_ARGS) \
@@ -142,7 +148,7 @@ upgrade_blueprint_factory:
 		--sig "run()"
 
 upgrade_blueprint_hook:
-	@echo "Upgrading Blueprint Network Hook..."
+	@echo "Upgrading Blueprint Protocol Hook..."
 	@source $(ENV_FILE) && forge script script/UpgradeBlueprintHook.s.sol:UpgradeBlueprintHook $(NETWORK_ARGS) \
 		--ffi \
 		--via-ir \
@@ -156,9 +162,9 @@ upgrade_buyback_escrow:
 		--sig "run()"
 
 upgrade_blueprint_network: upgrade_blueprint_factory upgrade_blueprint_hook upgrade_buyback_escrow
-	@echo "All Blueprint Network contracts upgraded successfully!"
+	@echo "All Blueprint Protocol contracts upgraded successfully!"
 
-# Blueprint Network verification commands
+# Blueprint Protocol verification commands
 verify_blueprint_factory:
 	@if [ -z "${BLUEPRINT_FACTORY_ADDRESS}" ]; then \
 		echo "Usage: make verify_blueprint_factory BLUEPRINT_FACTORY_ADDRESS=0x..."; \
@@ -178,7 +184,7 @@ verify_blueprint_hook:
 		echo "Usage: make verify_blueprint_hook BLUEPRINT_HOOK_ADDRESS=0x..."; \
 		exit 1; \
 	fi
-	@echo "Verifying Blueprint Network Hook implementation..."
+	@echo "Verifying Blueprint Protocol Hook implementation..."
 	@forge verify-contract \
 		${BLUEPRINT_HOOK_ADDRESS} \
 		"src/contracts/hooks/BlueprintNetworkHook.sol:BlueprintNetworkHook" \
@@ -195,16 +201,16 @@ verify_buyback_escrow:
 	@echo "Verifying Buyback Escrow implementation..."
 	@forge verify-contract \
 		${BUYBACK_ESCROW_ADDRESS} \
-		"src/contracts/escrows/BuybackEscrow.sol:BuybackEscrow" \
+		"src/contracts/escrows/BlueprintBuybackEscrow.sol:BlueprintBuybackEscrow" \
 		--chain-id ${CHAIN_ID} \
 		--verifier etherscan \
 		--etherscan-api-key ${ETHERSCAN_API_KEY} \
 		--watch
 
 verify_blueprint_network: verify_blueprint_factory verify_blueprint_hook verify_buyback_escrow
-	@echo "All Blueprint Network contracts verified successfully!"
+	@echo "All Blueprint Protocol contracts verified successfully!"
 
-# Network-specific Blueprint Network verification commands
+# Network-specific Blueprint Protocol verification commands
 verify_blueprint_factory_base_sepolia:
 	@if [ -z "${BLUEPRINT_FACTORY_ADDRESS}" ]; then \
 		echo "Usage: make verify_blueprint_factory_base_sepolia BLUEPRINT_FACTORY_ADDRESS=0x..."; \
@@ -238,41 +244,44 @@ verify_buyback_escrow_base_sepolia:
 	fi
 	@forge verify-contract \
 		${BUYBACK_ESCROW_ADDRESS} \
-		"src/contracts/escrows/BuybackEscrow.sol:BuybackEscrow" \
+		"src/contracts/escrows/BlueprintBuybackEscrow.sol:BlueprintBuybackEscrow" \
 		--chain-id 84532 \
 		--etherscan-api-key ${BASESCAN_API_KEY} \
 		--rpc-url ${BASE_SEPOLIA_RPC} \
 		--watch
 
 verify_blueprint_network_base_sepolia: verify_blueprint_factory_base_sepolia verify_blueprint_hook_base_sepolia verify_buyback_escrow_base_sepolia
-	@echo "All Blueprint Network contracts verified on Base Sepolia successfully!"
+	@echo "All Blueprint Protocol contracts verified on Base Sepolia successfully!"
 
 # Help commands
 help_blueprint:
-	@echo "Blueprint Network Commands:"
+	@echo "Blueprint Protocol Commands:"
 	@echo ""
 	@echo "TESTING:"
 	@echo "  make test_blueprint_compilation  - Test contract compilation"
-	@echo "  make test_blueprint_network      - Run Blueprint Network tests"
-	@echo "  make test_blueprint_position_manager - Run BlueprintPositionManager tests"
+	@echo "  make test_blueprint_network      - Run Blueprint Protocol tests"
+
 	@echo "  make test_blueprint_hook         - Run BlueprintNetworkHook tests"
 	@echo "  make test_blueprint_factory      - Run BlueprintFactory tests"
-	@echo "  make test_buyback_escrow         - Run BuybackEscrow tests"
+	@echo "  make test_buyback_escrow         - Run BlueprintBuybackEscrow tests"
 	@echo "  make test_upgradeable           - Run upgradeable functionality tests"
-	@echo "  make test_blueprint_all         - Run all Blueprint Network tests"
+	@echo "  make test_blueprint_all         - Run all Blueprint Protocol tests"
+	@echo "  make test_blueprint_comprehensive - Run ALL Blueprint-related test files"
+	@echo "  make test_blueprint_v2          - Run Blueprint Protocol V2 comprehensive tests"
 	@echo "  make test_blueprint_core        - Run core Blueprint functionality tests"
+	@echo "  make test_reward_pool           - Run BlueprintRewardPool tests"
 	@echo ""
 	@echo "DEPLOYMENT:"
 	@echo "  make deploy_blueprint_factory   - Deploy Blueprint Factory (upgradeable)"
-	@echo "  make deploy_blueprint_hook      - Deploy Blueprint Network Hook (upgradeable)"
+	@echo "  make deploy_blueprint_hook      - Deploy Blueprint Protocol Hook (upgradeable)"
 	@echo "  make deploy_buyback_escrow      - Deploy Buyback Escrow (upgradeable)"
-	@echo "  make deploy_blueprint_network   - Deploy complete Blueprint Network system"
+	@echo "  make deploy_blueprint_network   - Deploy complete Blueprint Protocol system"
 	@echo "  make deploy_blueprint_network_local - Deploy to local network"
 	@echo "  make deploy_all_blueprint       - Deploy everything Blueprint related"
 	@echo ""
 	@echo "UPGRADES:"
 	@echo "  make upgrade_blueprint_factory  - Upgrade Blueprint Factory"
-	@echo "  make upgrade_blueprint_hook     - Upgrade Blueprint Network Hook"
+	@echo "  make upgrade_blueprint_hook     - Upgrade Blueprint Protocol Hook"
 	@echo "  make upgrade_buyback_escrow     - Upgrade Buyback Escrow"
 	@echo "  make upgrade_blueprint_network  - Upgrade all Blueprint contracts"
 	@echo ""
@@ -293,13 +302,13 @@ help_blueprint:
 	@echo ""
 	@echo "EXAMPLES:"
 	@echo "  make test_blueprint_all"
-	@echo "  make test_blueprint_position_manager"
+	@echo "  make test_reward_pool"
 	@echo "  make deploy_blueprint_network --network base_sepolia"
 	@echo "  make verify_blueprint_factory BLUEPRINT_FACTORY_ADDRESS=0x123... --network base_sepolia"
 	@echo "  make upgrade_blueprint_network --network base"
 
 help:
-	@echo "Blueprint Network Project - Available Commands"
+	@echo "Blueprint Protocol Project - Available Commands"
 	@echo "=============================================="
 	@echo ""
 	@echo "BASIC COMMANDS:"
@@ -309,8 +318,10 @@ help:
 	@echo "  make coverage       - Generate coverage report"
 	@echo ""
 	@echo "BLUEPRINT NETWORK:"
-	@echo "  make help_blueprint - Show detailed Blueprint Network commands"
-	@echo "  make test_blueprint_all - Run all Blueprint Network tests"
-	@echo "  make deploy_blueprint_network - Deploy Blueprint Network system"
+	@echo "  make help_blueprint - Show detailed Blueprint Protocol commands"
+	@echo "  make test_blueprint_all - Run all Blueprint Protocol tests"
+	@echo "  make test_blueprint_comprehensive - Run ALL Blueprint-related test files"
+	@echo "  make test_blueprint_v2 - Run Blueprint Protocol V2 comprehensive tests"
+	@echo "  make deploy_blueprint_network - Deploy Blueprint Protocol system"
 	@echo ""
-	@echo "For detailed Blueprint Network commands, run: make help_blueprint"
+	@echo "For detailed Blueprint Protocol commands, run: make help_blueprint"

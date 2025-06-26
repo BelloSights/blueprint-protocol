@@ -1,4 +1,12 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
+/*
+__________.__                             .__        __   
+\______   \  |  __ __   ____ _____________|__| _____/  |_ 
+ |    |  _/  | |  |  \_/ __ \\____ \_  __ \  |/    \   __\
+ |    |   \  |_|  |  /\  ___/|  |_> >  | \/  |   |  \  |  
+ |______  /____/____/  \___  >   __/|__|  |__|___|  /__|  
+        \/                 \/|__|                 \/      
+*/
 pragma solidity ^0.8.26;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
@@ -14,28 +22,25 @@ import {PoolId, PoolIdLibrary} from '@uniswap/v4-core/src/types/PoolId.sol';
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
 import {BalanceDelta} from '@uniswap/v4-core/src/types/BalanceDelta.sol';
 
-
 /**
- * BuybackEscrow - Upgradeable contract with configurable buyback parameters
+ * BlueprintBuybackEscrow - Simplified upgradeable contract for fee collection and manual buybacks
  * 
  * Features:
  * - Upgradeable using UUPS pattern
- * - Role-based access control
- * - Configurable buyback thresholds and intervals
- * - Multiple buyback strategies
+ * - Role-based access control with BUYBACK_MANAGER_ROLE for decentralized buyback execution
+ * - Receives both ERC20 tokens and native ETH fees
+ * - Manual buyback execution by authorized managers
  * - Emergency pause functionality
  */
-contract BuybackEscrow is 
+contract BlueprintBuybackEscrow is 
     Initializable,
     AccessControlUpgradeable,
     UUPSUpgradeable,
     PausableUpgradeable 
 {
-
     using PoolIdLibrary for PoolKey;
 
     // Role definitions
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant BUYBACK_MANAGER_ROLE = keccak256("BUYBACK_MANAGER_ROLE");
     bytes32 public constant EMERGENCY_ROLE = keccak256("EMERGENCY_ROLE");
     bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
@@ -45,39 +50,27 @@ contract BuybackEscrow is
     error BuybackFailed();
     error UnauthorizedCaller();
     error InvalidAddress();
-    error InvalidThreshold();
 
-    event FeesReceived(PoolId indexed poolId, uint256 amount);
-    event BuybackExecuted(PoolId indexed poolId, uint256 ethSpent, uint256 tokensBought);
+    event FeesReceived(PoolId indexed poolId, address indexed token, uint256 amount);
+    event NativeFeesReceived(PoolId indexed poolId, uint256 amount);
+    event BuybackExecuted(PoolId indexed poolId, address indexed token, uint256 amountIn, uint256 amountOut);
     event TokensBurned(address indexed token, uint256 amount);
-    event BuybackThresholdUpdated(uint256 newThreshold);
-    event AutoBuybackToggled(bool enabled);
-    event BuybackIntervalUpdated(uint256 newInterval);
     event BlueprintHookUpdated(address indexed oldHook, address indexed newHook);
 
     /// The pool manager for executing swaps
     IPoolManager public poolManager;
     
-    /// The native token (ETH/WETH)
+    /// The native token address (address(0) for native ETH)
     address public nativeToken;
     
     /// The Blueprint token address
     address public blueprintToken;
     
-    /// Minimum ETH balance before buyback can be executed
-    uint256 public buybackThreshold;
+    /// Maps pool IDs to accumulated ERC20 token fees by token address
+    mapping(PoolId => mapping(address => uint256)) public accumulatedTokenFees;
     
-    /// Whether automatic buybacks are enabled
-    bool public autoBuybackEnabled;
-    
-    /// Time between automatic buybacks
-    uint256 public buybackInterval;
-    
-    /// Maps pool IDs to accumulated fees
-    mapping(PoolId => uint256) public accumulatedFees;
-    
-    /// Maps pool IDs to last buyback timestamp
-    mapping(PoolId => uint256) public lastBuyback;
+    /// Maps pool IDs to accumulated native ETH fees
+    mapping(PoolId => uint256) public accumulatedNativeFees;
     
     /// Maps pool IDs to their pool keys for buyback execution
     mapping(PoolId => PoolKey) public poolKeys;
@@ -94,24 +87,20 @@ contract BuybackEscrow is
      * Initialize the upgradeable contract
      *
      * @param _poolManager The Uniswap V4 PoolManager
-     * @param _nativeToken The native token (ETH/WETH)
+     * @param _nativeToken The native token address (address(0) for native ETH)
      * @param _blueprintToken The Blueprint token address (can be address(0) initially)
      * @param _admin The admin address (receives all roles initially)
-     * @param _initialThreshold Initial buyback threshold
-     * @param _initialInterval Initial buyback interval
      */
     function initialize(
         IPoolManager _poolManager,
         address _nativeToken,
         address _blueprintToken,
-        address _admin,
-        uint256 _initialThreshold,
-        uint256 _initialInterval
+        address _admin
     ) public initializer {
-        if (_admin == address(0) || _nativeToken == address(0)) {
+        if (_admin == address(0)) {
             revert InvalidAddress();
         }
-        if (_initialThreshold == 0) revert InvalidThreshold();
+        // Note: _nativeToken can be address(0) for native ETH
 
         __AccessControl_init();
         __UUPSUpgradeable_init();
@@ -123,24 +112,18 @@ contract BuybackEscrow is
         
         // Set up roles
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
-        _grantRole(ADMIN_ROLE, _admin);
         _grantRole(BUYBACK_MANAGER_ROLE, _admin);
         _grantRole(EMERGENCY_ROLE, _admin);
         _grantRole(UPGRADER_ROLE, _admin);
-
-        // Set initial configuration
-        buybackThreshold = _initialThreshold;
-        buybackInterval = _initialInterval;
-        autoBuybackEnabled = true;
     }
 
     /**
      * Set the BlueprintNetworkHook address
-     * Only callable by ADMIN_ROLE
+     * Only callable by DEFAULT_ADMIN_ROLE
      *
      * @param _blueprintHook The BlueprintNetworkHook address
      */
-    function setBlueprintHook(address _blueprintHook) external onlyRole(ADMIN_ROLE) whenNotPaused {
+    function setBlueprintHook(address _blueprintHook) external onlyRole(DEFAULT_ADMIN_ROLE) whenNotPaused {
         if (_blueprintHook == address(0)) revert InvalidAddress();
         
         address oldHook = blueprintHook;
@@ -151,55 +134,86 @@ contract BuybackEscrow is
 
     /**
      * Register a pool for buyback operations
-     * Only callable by ADMIN_ROLE
+     * Only callable by DEFAULT_ADMIN_ROLE
      *
      * @param _poolKey The pool key to register
      */
-    function registerPool(PoolKey calldata _poolKey) external onlyRole(ADMIN_ROLE) whenNotPaused {
+    function registerPool(PoolKey calldata _poolKey) external onlyRole(DEFAULT_ADMIN_ROLE) whenNotPaused {
         PoolId poolId = _poolKey.toId();
         poolKeys[poolId] = _poolKey;
     }
 
     /**
-     * Receive fees from the BlueprintNetworkHook
+     * Receive ERC20 token fees from the BlueprintNetworkHook
      *
      * @param _poolId The pool ID the fees are from
+     * @param _token The token address
      * @param _amount The amount of fees received
      */
-    function receiveFees(PoolId _poolId, uint256 _amount) external whenNotPaused {
+    function receiveTokenFees(PoolId _poolId, address _token, uint256 _amount) external whenNotPaused {
         if (msg.sender != blueprintHook) revert UnauthorizedCaller();
         
-        accumulatedFees[_poolId] += _amount;
-        emit FeesReceived(_poolId, _amount);
-        
-        // Trigger automatic buyback if conditions are met
-        if (autoBuybackEnabled && _shouldExecuteBuyback(_poolId)) {
-            _executeBuyback(_poolId);
-        }
+        accumulatedTokenFees[_poolId][_token] += _amount;
+        emit FeesReceived(_poolId, _token, _amount);
     }
 
     /**
-     * Execute buyback for a specific pool
+     * Receive native ETH fees from the BlueprintNetworkHook
+     *
+     * @param _poolId The pool ID the fees are from
+     */
+    function receiveNativeFees(PoolId _poolId) external payable whenNotPaused {
+        if (msg.sender != blueprintHook) revert UnauthorizedCaller();
+        
+        accumulatedNativeFees[_poolId] += msg.value;
+        emit NativeFeesReceived(_poolId, msg.value);
+    }
+
+    /**
+     * Execute buyback for a specific pool using ERC20 tokens
      * Only callable by BUYBACK_MANAGER_ROLE
      *
      * @param _poolId The pool ID to execute buyback for
+     * @param _token The token to use for buyback
+     * @param _amount The amount to use for buyback (0 = use all accumulated)
      */
-    function executeBuyback(PoolId _poolId) external onlyRole(BUYBACK_MANAGER_ROLE) whenNotPaused {
-        _executeBuyback(_poolId);
+    function executeBuyback(PoolId _poolId, address _token, uint256 _amount) external onlyRole(BUYBACK_MANAGER_ROLE) whenNotPaused {
+        uint256 availableAmount = accumulatedTokenFees[_poolId][_token];
+        if (availableAmount == 0) revert InsufficientBalance();
+        
+        uint256 buybackAmount = _amount == 0 ? availableAmount : _amount;
+        if (buybackAmount > availableAmount) revert InsufficientBalance();
+        
+        // Reduce accumulated fees
+        accumulatedTokenFees[_poolId][_token] -= buybackAmount;
+        
+        // Execute the buyback swap
+        uint256 tokensReceived = _executeSwap(_poolId, _token, buybackAmount);
+        
+        emit BuybackExecuted(_poolId, _token, buybackAmount, tokensReceived);
     }
 
     /**
-     * Execute buybacks for multiple pools
+     * Execute buyback for a specific pool using native ETH
      * Only callable by BUYBACK_MANAGER_ROLE
      *
-     * @param _poolIds Array of pool IDs to execute buybacks for
+     * @param _poolId The pool ID to execute buyback for
+     * @param _amount The amount to use for buyback (0 = use all accumulated)
      */
-    function executeBuybackBatch(PoolId[] calldata _poolIds) external onlyRole(BUYBACK_MANAGER_ROLE) whenNotPaused {
-        for (uint256 i = 0; i < _poolIds.length; i++) {
-            if (_shouldExecuteBuyback(_poolIds[i])) {
-                _executeBuyback(_poolIds[i]);
-            }
-        }
+    function executeBuybackNative(PoolId _poolId, uint256 _amount) external onlyRole(BUYBACK_MANAGER_ROLE) whenNotPaused {
+        uint256 availableAmount = accumulatedNativeFees[_poolId];
+        if (availableAmount == 0) revert InsufficientBalance();
+        
+        uint256 buybackAmount = _amount == 0 ? availableAmount : _amount;
+        if (buybackAmount > availableAmount) revert InsufficientBalance();
+        
+        // Reduce accumulated fees
+        accumulatedNativeFees[_poolId] -= buybackAmount;
+        
+        // Execute the buyback swap
+        uint256 tokensReceived = _executeSwap(_poolId, nativeToken, buybackAmount);
+        
+        emit BuybackExecuted(_poolId, nativeToken, buybackAmount, tokensReceived);
     }
 
     /**
@@ -223,50 +237,23 @@ contract BuybackEscrow is
     }
 
     /**
-     * Set the buyback threshold
-     * Only callable by BUYBACK_MANAGER_ROLE
-     *
-     * @param _threshold New threshold in wei
-     */
-    function setBuybackThreshold(uint256 _threshold) external onlyRole(BUYBACK_MANAGER_ROLE) whenNotPaused {
-        if (_threshold == 0) revert InvalidThreshold();
-        buybackThreshold = _threshold;
-        emit BuybackThresholdUpdated(_threshold);
-    }
-
-    /**
-     * Toggle automatic buyback functionality
-     * Only callable by BUYBACK_MANAGER_ROLE
-     *
-     * @param _enabled Whether to enable automatic buybacks
-     */
-    function setAutoBuyback(bool _enabled) external onlyRole(BUYBACK_MANAGER_ROLE) whenNotPaused {
-        autoBuybackEnabled = _enabled;
-        emit AutoBuybackToggled(_enabled);
-    }
-
-    /**
-     * Set the buyback interval
-     * Only callable by BUYBACK_MANAGER_ROLE
-     *
-     * @param _interval New interval in seconds
-     */
-    function setBuybackInterval(uint256 _interval) external onlyRole(BUYBACK_MANAGER_ROLE) whenNotPaused {
-        buybackInterval = _interval;
-        emit BuybackIntervalUpdated(_interval);
-    }
-
-    /**
      * Emergency withdrawal of tokens
      * Only callable by EMERGENCY_ROLE
      *
-     * @param _token Token to withdraw
+     * @param _token Token to withdraw (address(0) for native ETH)
      * @param _to Recipient address
      * @param _amount Amount to withdraw
      */
     function emergencyWithdraw(address _token, address _to, uint256 _amount) external onlyRole(EMERGENCY_ROLE) {
         if (_to == address(0)) revert InvalidAddress();
-        IERC20(_token).transfer(_to, _amount);
+        
+        if (_token == address(0)) {
+            // Withdraw native ETH
+            payable(_to).transfer(_amount);
+        } else {
+            // Withdraw ERC20 token
+            IERC20(_token).transfer(_to, _amount);
+        }
     }
 
     /**
@@ -286,105 +273,77 @@ contract BuybackEscrow is
     }
 
     /**
-     * Get the accumulated fees for a pool
+     * Get the accumulated token fees for a pool
+     *
+     * @param _poolId The pool ID
+     * @param _token The token address
+     * @return The accumulated fees
+     */
+    function getAccumulatedTokenFees(PoolId _poolId, address _token) external view returns (uint256) {
+        return accumulatedTokenFees[_poolId][_token];
+    }
+
+    /**
+     * Get the accumulated native fees for a pool
      *
      * @param _poolId The pool ID
      * @return The accumulated fees
      */
-    function getAccumulatedFees(PoolId _poolId) external view returns (uint256) {
-        return accumulatedFees[_poolId];
-    }
-
-    /**
-     * Check if a buyback should be executed for a pool
-     *
-     * @param _poolId The pool ID to check
-     * @return Whether buyback should be executed
-     */
-    function shouldExecuteBuyback(PoolId _poolId) external view returns (bool) {
-        return _shouldExecuteBuyback(_poolId);
+    function getAccumulatedNativeFees(PoolId _poolId) external view returns (uint256) {
+        return accumulatedNativeFees[_poolId];
     }
 
     // Internal Functions
 
     /**
-     * Internal function to check if buyback should be executed
-     *
-     * @param _poolId The pool ID to check
-     * @return Whether buyback should be executed
-     */
-    function _shouldExecuteBuyback(PoolId _poolId) internal view returns (bool) {
-        // Check if we have enough accumulated fees
-        if (accumulatedFees[_poolId] < buybackThreshold) {
-            return false;
-        }
-        
-        // Check if enough time has passed since last buyback
-        if (block.timestamp < lastBuyback[_poolId] + buybackInterval) {
-            return false;
-        }
-        
-        // Check if pool is registered
-        if (poolKeys[_poolId].fee == 0) {
-            return false;
-        }
-        
-        return true;
-    }
-
-    /**
-     * Internal function to execute buyback
-     *
-     * @param _poolId The pool ID to execute buyback for
-     */
-    function _executeBuyback(PoolId _poolId) internal {
-        if (!_shouldExecuteBuyback(_poolId)) revert BuybackFailed();
-        
-        PoolKey memory poolKey = poolKeys[_poolId];
-        uint256 ethAmount = accumulatedFees[_poolId];
-        
-        // Reset accumulated fees
-        accumulatedFees[_poolId] = 0;
-        lastBuyback[_poolId] = block.timestamp;
-        
-        // Execute the buyback swap
-        uint256 tokensBought = _executeSwap(poolKey, ethAmount);
-        
-        emit BuybackExecuted(_poolId, ethAmount, tokensBought);
-    }
-
-    /**
      * Execute a swap to buy back tokens
      *
-     * @param _poolKey The pool key to swap in
-     * @param _ethAmount The amount of ETH to swap
+     * @param _poolId The pool ID to swap in
+     * @param _token The input token address
+     * @param _amount The amount to swap
      * @return The amount of tokens bought
      */
-    function _executeSwap(PoolKey memory _poolKey, uint256 _ethAmount) internal returns (uint256) {
+    function _executeSwap(PoolId _poolId, address _token, uint256 _amount) internal returns (uint256) {
+        PoolKey memory poolKey = poolKeys[_poolId];
+        if (poolKey.fee == 0) revert InvalidPool();
+        
         // Determine swap direction
-        // We want to swap ETH/BP for Creator tokens
         bool zeroForOne;
         
-        if (Currency.unwrap(_poolKey.currency0) == blueprintToken) {
-            // BP is currency0, creator token is currency1
+        if (Currency.unwrap(poolKey.currency0) == _token) {
+            // Input token is currency0
             zeroForOne = true;
-        } else {
-            // Creator token is currency0, BP is currency1
+        } else if (Currency.unwrap(poolKey.currency1) == _token) {
+            // Input token is currency1
             zeroForOne = false;
+        } else {
+            revert InvalidPool();
         }
         
         IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
             zeroForOne: zeroForOne,
-            amountSpecified: int256(_ethAmount),
+            amountSpecified: int256(_amount),
             sqrtPriceLimitX96: 0
         });
         
         // Execute the swap
-        BalanceDelta delta = poolManager.swap(_poolKey, params, "");
+        BalanceDelta delta = poolManager.swap(poolKey, params, "");
         
         // Return the amount of tokens bought (absolute value of the negative delta)
         int128 deltaAmount = zeroForOne ? delta.amount1() : delta.amount0();
         return deltaAmount < 0 ? uint256(uint128(-deltaAmount)) : 0;
+    }
+
+    /**
+     * Set the Blueprint token address
+     * Only callable by DEFAULT_ADMIN_ROLE
+     *
+     * @param _blueprintToken The Blueprint token address
+     */
+    function setBlueprintToken(address _blueprintToken) external onlyRole(DEFAULT_ADMIN_ROLE) whenNotPaused {
+        if (_blueprintToken == address(0)) revert InvalidAddress();
+        
+        blueprintToken = _blueprintToken;
     }
 
     /**
@@ -423,17 +382,5 @@ contract BuybackEscrow is
      */
     fallback() external payable {
         // Allow contract to receive ETH
-    }
-
-    /**
-     * Set the Blueprint token address
-     * Only callable by ADMIN_ROLE
-     *
-     * @param _blueprintToken The Blueprint token address
-     */
-    function setBlueprintToken(address _blueprintToken) external onlyRole(ADMIN_ROLE) whenNotPaused {
-        if (_blueprintToken == address(0)) revert InvalidAddress();
-        
-        blueprintToken = _blueprintToken;
     }
 } 
